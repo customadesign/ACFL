@@ -1,0 +1,393 @@
+{
+  "database": {
+    "name": "job_marketplace",
+    "tables": {
+      "users": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "email": {
+            "type": "varchar(255)",
+            "unique": true,
+            "required": true
+          },
+          "password_hash": {
+            "type": "varchar(255)",
+            "required": true
+          },
+          "user_type": {
+            "type": "enum",
+            "values": ["employer", "freelancer"],
+            "required": true
+          },
+          "first_name": {
+            "type": "varchar(100)",
+            "required": true
+          },
+          "last_name": {
+            "type": "varchar(100)",
+            "required": true
+          },
+          "phone": {
+            "type": "varchar(20)"
+          },
+          "is_verified": {
+            "type": "boolean",
+            "default": false
+          },
+          "is_active": {
+            "type": "boolean",
+            "default": true
+          },
+          "created_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          },
+          "updated_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          }
+        },
+        "indexes": [
+          {
+            "name": "idx_users_email",
+            "columns": ["email"]
+          },
+          {
+            "name": "idx_users_type",
+            "columns": ["user_type"]
+          }
+        ]
+      },
+      "employer_profiles": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "user_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id",
+              "on_delete": "CASCADE"
+            }
+          },
+          "company_name": {
+            "type": "varchar(255)",
+            "required": true
+          },
+          "company_description": {
+            "type": "text"
+          },
+          "company_size": {
+            "type": "enum",
+            "values": ["1-10", "11-50", "51-200", "201-500", "500+"]
+          },
+          "industry": {
+            "type": "varchar(100)"
+          },
+          "website": {
+            "type": "varchar(255)"
+          },
+          "logo_url": {
+            "type": "varchar(500)"
+          },
+          "address": {
+            "type": "jsonb"
+          },
+          "verification_status": {
+            "type": "enum",
+            "values": ["pending", "verified", "rejected"],
+            "default": "pending"
+          }
+        }
+      },
+      "freelancer_profiles": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "user_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id",
+              "on_delete": "CASCADE"
+            }
+          },
+          "title": {
+            "type": "varchar(255)"
+          },
+          "bio": {
+            "type": "text"
+          },
+          "hourly_rate": {
+            "type": "decimal(10,2)"
+          },
+          "currency": {
+            "type": "varchar(3)",
+            "default": "USD"
+          },
+          "skills": {
+            "type": "jsonb"
+          },
+          "experience_years": {
+            "type": "integer"
+          },
+          "portfolio_url": {
+            "type": "varchar(500)"
+          },
+          "resume_url": {
+            "type": "varchar(500)"
+          },
+          "availability": {
+            "type": "enum",
+            "values": ["available", "busy", "not_available"],
+            "default": "available"
+          },
+          "rating": {
+            "type": "decimal(3,2)",
+            "default": 0
+          },
+          "total_reviews": {
+            "type": "integer",
+            "default": 0
+          }
+        }
+      },
+      "jobs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "employer_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id"
+            }
+          },
+          "title": {
+            "type": "varchar(255)",
+            "required": true
+          },
+          "description": {
+            "type": "text",
+            "required": true
+          },
+          "requirements": {
+            "type": "text"
+          },
+          "job_type": {
+            "type": "enum",
+            "values": ["full_time", "part_time", "contract", "freelance"],
+            "required": true
+          },
+          "experience_level": {
+            "type": "enum",
+            "values": ["entry", "intermediate", "senior", "expert"]
+          },
+          "salary_min": {
+            "type": "decimal(10,2)"
+          },
+          "salary_max": {
+            "type": "decimal(10,2)"
+          },
+          "salary_type": {
+            "type": "enum",
+            "values": ["hourly", "monthly", "yearly", "fixed"]
+          },
+          "currency": {
+            "type": "varchar(3)",
+            "default": "USD"
+          },
+          "location": {
+            "type": "jsonb"
+          },
+          "remote_possible": {
+            "type": "boolean",
+            "default": false
+          },
+          "skills_required": {
+            "type": "jsonb"
+          },
+          "status": {
+            "type": "enum",
+            "values": ["draft", "active", "paused", "closed", "filled"],
+            "default": "draft"
+          },
+          "views_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "applications_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "created_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          },
+          "expires_at": {
+            "type": "timestamp"
+          }
+        },
+        "indexes": [
+          {
+            "name": "idx_jobs_status",
+            "columns": ["status"]
+          },
+          {
+            "name": "idx_jobs_employer",
+            "columns": ["employer_id"]
+          }
+        ]
+      },
+      "job_applications": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "job_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "jobs",
+              "column": "id"
+            }
+          },
+          "freelancer_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id"
+            }
+          },
+          "cover_letter": {
+            "type": "text"
+          },
+          "proposed_rate": {
+            "type": "decimal(10,2)"
+          },
+          "status": {
+            "type": "enum",
+            "values": ["pending", "reviewing", "shortlisted", "interview", "rejected", "hired"],
+            "default": "pending"
+          },
+          "applied_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          },
+          "updated_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          }
+        },
+        "indexes": [
+          {
+            "name": "idx_applications_job",
+            "columns": ["job_id"]
+          },
+          {
+            "name": "idx_applications_freelancer",
+            "columns": ["freelancer_id"]
+          }
+        ]
+      },
+      "messages": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "sender_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id"
+            }
+          },
+          "receiver_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id"
+            }
+          },
+          "job_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "jobs",
+              "column": "id"
+            }
+          },
+          "message": {
+            "type": "text",
+            "required": true
+          },
+          "is_read": {
+            "type": "boolean",
+            "default": false
+          },
+          "created_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          }
+        },
+        "indexes": [
+          {
+            "name": "idx_messages_conversation",
+            "columns": ["sender_id", "receiver_id"]
+          }
+        ]
+      },
+      "subscriptions": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true,
+            "default": "gen_random_uuid()"
+          },
+          "user_id": {
+            "type": "uuid",
+            "foreign_key": {
+              "table": "users",
+              "column": "id"
+            }
+          },
+          "plan_type": {
+            "type": "enum",
+            "values": ["free", "basic", "premium", "enterprise"],
+            "default": "free"
+          },
+          "status": {
+            "type": "enum",
+            "values": ["active", "cancelled", "expired"],
+            "default": "active"
+          },
+          "started_at": {
+            "type": "timestamp",
+            "default": "CURRENT_TIMESTAMP"
+          },
+          "expires_at": {
+            "type": "timestamp"
+          },
+          "features": {
+            "type": "jsonb"
+          }
+        }
+      }
+    }
+  }
+}
