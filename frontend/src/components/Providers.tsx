@@ -2,6 +2,7 @@
 
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const theme = createTheme({
   components: {
@@ -53,9 +54,11 @@ const theme = createTheme({
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+      </ThemeProvider>
+    </AuthProvider>
   );
 } 

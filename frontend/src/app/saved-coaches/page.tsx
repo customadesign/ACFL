@@ -5,14 +5,13 @@ import Link from 'next/link'
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Star, Calendar, Video, MapPin, MessageCircle, Trash2 } from "lucide-react"
+import ProtectedRoute from '@/components/ProtectedRoute'
+import axios from 'axios'
 
 interface SavedCoach {
   id: string
   name: string
   specialties: string[]
-  modalities: string[]
-  location: string[]
-  matchScore: number
   languages: string[]
   bio: string
   sessionRate: string
@@ -21,91 +20,55 @@ interface SavedCoach {
   savedDate: string
   experience: string
   rating: number
+  email?: string
 }
 
-// Mock saved coaches data
-const mockSavedCoaches: SavedCoach[] = [
-  {
-    id: '1',
-    name: "Richard Peng",
-    specialties: ["Anxiety", "Depression"],
-    modalities: ["ACT", "Mindfulness-Based Coaching"],
-    location: ["CA", "NY"],
-    matchScore: 95,
-    languages: ["English", "Mandarin"],
-    bio: "I'm a compassionate ACT coach specializing in anxiety and depression management. I help clients develop psychological flexibility through mindfulness, acceptance, and values-based action.",
-    sessionRate: "$150-200/session",
-    virtualAvailable: true,
-    inPersonAvailable: true,
-    savedDate: "2024-01-10",
-    experience: "8 years",
-    rating: 4.9
-  },
-  {
-    id: '2',
-    name: "Alice Zhang",
-    specialties: ["Depression", "Mindfulness"],
-    modalities: ["ACT", "Mindfulness-Based Stress Reduction"],
-    location: ["CA"],
-    matchScore: 87,
-    languages: ["English", "Mandarin"],
-    bio: "I believe in empowering clients through mindfulness and acceptance practices. My approach combines traditional ACT principles with MBSR techniques to help clients find peace and purpose.",
-    sessionRate: "$175-225/session",
-    virtualAvailable: true,
-    inPersonAvailable: false,
-    savedDate: "2024-01-08",
-    experience: "6 years",
-    rating: 4.8
-  },
-  {
-    id: '3',
-    name: "Maria Rodriguez",
-    specialties: ["Trauma Recovery", "Life Transitions"],
-    modalities: ["ACT", "Trauma-Informed ACT"],
-    location: ["NY", "FL"],
-    matchScore: 82,
-    languages: ["English", "Spanish"],
-    bio: "I'm a trauma-informed ACT coach specializing in helping clients heal from past experiences and navigate major life transitions with confidence and purpose.",
-    sessionRate: "$160-210/session",
-    virtualAvailable: true,
-    inPersonAvailable: true,
-    savedDate: "2024-01-05",
-    experience: "12 years",
-    rating: 4.9
-  }
-]
 
-export default function SavedCoachesPage() {
+function SavedCoachesContent() {
   const [savedCoaches, setSavedCoaches] = useState<SavedCoach[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
   useEffect(() => {
-    // Simulate loading saved coaches from localStorage or API
-    const loadSavedCoaches = () => {
-      try {
-        const saved = localStorage.getItem('savedCoaches')
-        if (saved) {
-          setSavedCoaches(JSON.parse(saved))
-        } else {
-          // Use mock data for demonstration
-          setSavedCoaches(mockSavedCoaches)
-          localStorage.setItem('savedCoaches', JSON.stringify(mockSavedCoaches))
-        }
-      } catch (error) {
-        console.error('Error loading saved coaches:', error)
-        setSavedCoaches(mockSavedCoaches)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadSavedCoaches()
   }, [])
 
-  const handleRemoveCoach = (coachId: string) => {
-    const updatedCoaches = savedCoaches.filter(coach => coach.id !== coachId)
-    setSavedCoaches(updatedCoaches)
-    localStorage.setItem('savedCoaches', JSON.stringify(updatedCoaches))
+  const loadSavedCoaches = async () => {
+    try {
+      setLoading(true)
+      const response = await axios.get(`${API_URL}/api/client/saved-coaches`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (response.data.success) {
+        setSavedCoaches(response.data.data)
+      }
+    } catch (error) {
+      console.error('Error loading saved coaches:', error)
+      setError('Failed to load saved coaches')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRemoveCoach = async (coachId: string) => {
+    try {
+      await axios.delete(`${API_URL}/api/client/saved-coaches/${coachId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      // Remove from local state
+      setSavedCoaches(prev => prev.filter(coach => coach.id !== coachId))
+    } catch (error) {
+      console.error('Error removing saved coach:', error)
+      setError('Failed to remove coach')
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -170,6 +133,13 @@ export default function SavedCoachesPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Saved Coaches</h2>
@@ -194,12 +164,12 @@ export default function SavedCoachesPage() {
             <div className="flex items-center">
               <Star className="w-8 h-8 text-green-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-green-800">Avg Match Score</p>
+                <p className="text-sm font-medium text-green-800">Avg Rating</p>
                 <p className="text-2xl font-bold text-green-900">
                   {savedCoaches.length > 0 
-                    ? Math.round(savedCoaches.reduce((sum, coach) => sum + coach.matchScore, 0) / savedCoaches.length)
+                    ? (savedCoaches.reduce((sum, coach) => sum + coach.rating, 0) / savedCoaches.length).toFixed(1)
                     : 0
-                  }%
+                  }
                 </p>
               </div>
             </div>
@@ -248,31 +218,31 @@ export default function SavedCoachesPage() {
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
                         <span className="text-sm text-gray-600">{coach.rating}</span>
                       </div>
-                      <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {coach.matchScore}% Match
+                      <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                        Saved Coach
                       </div>
                     </div>
                     
                     <div className="text-sm text-gray-600 mb-3">
-                      Saved on {formatDate(coach.savedDate)} • {coach.experience} experience
+                      Saved on {formatDate(coach.savedDate)}
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-1">Specialties:</p>
-                        <p className="text-sm text-gray-600">{coach.specialties.join(', ')}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">Modalities:</p>
-                        <p className="text-sm text-gray-600">{coach.modalities.join(', ')}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">Location:</p>
-                        <p className="text-sm text-gray-600">{coach.location.join(', ')}</p>
+                        <p className="text-sm text-gray-600">{coach.specialties.join(', ') || 'Not specified'}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-1">Languages:</p>
-                        <p className="text-sm text-gray-600">{coach.languages.join(', ')}</p>
+                        <p className="text-sm text-gray-600">{coach.languages.join(', ') || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Experience:</p>
+                        <p className="text-sm text-gray-600">{coach.experience} experience</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Session Rate:</p>
+                        <p className="text-sm text-gray-600">{coach.sessionRate}</p>
                       </div>
                     </div>
 
@@ -351,5 +321,13 @@ export default function SavedCoachesPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function SavedCoachesPage() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <SavedCoachesContent />
+    </ProtectedRoute>
   )
 } 

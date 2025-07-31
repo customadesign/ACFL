@@ -1,16 +1,17 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export async function findMatches(preferences: any) {
   try {
-    console.log('Making API call to:', `${API_BASE_URL}/api/match`);
+    console.log('Making API call to:', `${API_BASE_URL}/api/client/search-coaches`);
     console.log('With preferences:', preferences);
     
-    const response = await fetch(`${API_BASE_URL}/api/match`, {
+    const response = await fetch(`${API_BASE_URL}/api/client/search-coaches`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
-      body: JSON.stringify(preferences)
+      body: JSON.stringify({ preferences })
     });
 
     console.log('Response status:', response.status);
@@ -21,7 +22,12 @@ export async function findMatches(preferences: any) {
 
     const result = await response.json();
     console.log('API result:', result);
-    return result;
+    
+    if (result.success) {
+      return { matches: result.data };
+    } else {
+      throw new Error('Search failed');
+    }
   } catch (error) {
     console.error('API Error:', error);
     throw error;

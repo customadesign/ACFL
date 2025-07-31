@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -8,11 +9,15 @@ import { Card, CardContent } from "../components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "../components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
 import { useRouter } from "next/navigation"
+import { ProviderCard } from "@/components/ProviderCard"
+import { ChevronDown, ChevronUp, Filter } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "../components/ui/checkbox"
 import { findMatches } from "@/lib/api"
 import { LANGUAGES } from "@/constants/languages"
 import { STATE_NAMES } from "@/constants/states"
+import { useAuth } from "@/contexts/AuthContext"
+import ProtectedRoute from '@/components/ProtectedRoute'
 import {
   concernOptions,
   modalityOptions,
@@ -85,8 +90,16 @@ const formSchema = z.object({
 
 interface FormValues extends z.infer<typeof formSchema> {}
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
+  const { user, logout, isAuthenticated } = useAuth()
+  const [matches, setMatches] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(true)
+  const [formData, setFormData] = useState<FormValues | null>(null)
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: "onSubmit",
@@ -116,21 +129,28 @@ export default function Home() {
 
   async function onSubmit(data: FormValues) {
     try {
+      setIsLoading(true)
+      setSearchError(null)
       console.log('Form submitted with data:', data);
       
-      const matches = await findMatches(data);
+      const result = await findMatches(data);
       
-      console.log('Got matches:', matches);
+      console.log('Got matches:', result);
       
-      // Store both form data and matches
+      setMatches(result.matches || [])
+      setFormData(data)
+      setHasSearched(true)
+      setShowForm(false)
+      
+      // Store for other pages
       localStorage.setItem('formData', JSON.stringify(data));
-      localStorage.setItem('matches', JSON.stringify(matches));
+      localStorage.setItem('matches', JSON.stringify(result.matches || []));
       
-      console.log('Navigating to results page...');
-      router.push('/results');
     } catch (error) {
       console.error('Error fetching matches:', error);
-      alert('Error submitting form: ' + (error as Error).message);
+      setSearchError('Failed to find matches. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -155,7 +175,34 @@ export default function Home() {
               <h1 className="text-xl font-semibold text-gray-900">ACT Coaching For Life</h1>
             </div>
             <div className="hidden sm:flex items-center space-x-4">
-              <span className="text-sm text-gray-500">Find your perfect coach match</span>
+              {isAuthenticated ? (
+                <>
+                  <span className="text-sm text-gray-500">
+                    Welcome, {user?.firstName || user?.email}!
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-blue-600 hover:text-blue-500 font-medium text-sm"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register/client"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -189,15 +236,46 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Find Your Ideal ACT Coach</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Complete our comprehensive assessment to connect with ACT (Acceptance and Commitment Therapy) certified coaches who match your unique needs and preferences for your personal growth journey.
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Form Header */}
+        {showForm && (
+          <>
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Find Your Ideal ACT Coach</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Complete our comprehensive assessment to connect with ACT (Acceptance and Commitment Therapy) certified coaches who match your unique needs and preferences for your personal growth journey.
+              </p>
+            </div>
+          </>
+        )}
 
-        <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Finding Your Perfect Coach Matches</h2>
+              <p className="text-gray-600">We're analyzing thousands of coaches to find the best matches for you...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Search Error */}
+        {searchError && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {searchError}
+            <button 
+              onClick={() => {setSearchError(null); setShowForm(true)}} 
+              className="ml-4 underline hover:no-underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Search Form */}
+        {showForm && !isLoading && (
+          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden max-w-4xl mx-auto">
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
             <h3 className="text-white text-lg font-semibold">Personal Assessment</h3>
             <p className="text-blue-100 text-sm">Help us understand your coaching goals and preferences</p>
@@ -785,8 +863,87 @@ export default function Home() {
           </Form>
         </CardContent>
       </Card>
+        )}
+
+        {/* Results Section */}
+        {hasSearched && !isLoading && !showForm && (
+          <div className="space-y-8">
+            {/* Results Header */}
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Coach Matches</h2>
+                <p className="text-lg text-gray-600 mb-2">
+                  We found {matches.length} coach{matches.length !== 1 ? 'es' : ''} who match your preferences
+                </p>
+                {matches.length > 0 && (
+                  <div className="flex items-center gap-4 mb-4">
+                    <span className="text-sm text-gray-500">Match Quality:</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(() => {
+                        const excellent = matches.filter(m => m.matchScore >= 90)
+                        const good = matches.filter(m => m.matchScore >= 75 && m.matchScore < 90)
+                        const fair = matches.filter(m => m.matchScore < 75)
+                        const ranges = []
+                        if (excellent.length > 0) ranges.push({ label: 'Excellent Match', count: excellent.length, color: 'bg-green-100 text-green-800', range: '90%+' })
+                        if (good.length > 0) ranges.push({ label: 'Good Match', count: good.length, color: 'bg-blue-100 text-blue-800', range: '75-89%' })
+                        if (fair.length > 0) ranges.push({ label: 'Fair Match', count: fair.length, color: 'bg-orange-100 text-orange-800', range: '<75%' })
+                        return ranges.map((range, index) => (
+                          <div key={index} className={`${range.color} px-3 py-1 rounded-full text-sm font-medium`}>
+                            {range.count} {range.label}{range.count > 1 ? 'es' : ''} ({range.range})
+                          </div>
+                        ))
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Button
+                onClick={() => setShowForm(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                New Search
+              </Button>
+            </div>
+
+            {matches.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="bg-gray-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No coaches found</h3>
+                <p className="text-gray-600 mb-6">We couldn't find any coaches matching your current preferences. Try adjusting your search criteria for better results.</p>
+                <Button
+                  onClick={() => setShowForm(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Modify Search Criteria
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {matches.map((provider, index) => (
+                  <div key={provider.id || provider.name} className="transform transition-all duration-300 hover:scale-[1.01]">
+                    <ProviderCard {...provider} isBestMatch={index === 0} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <HomeContent />
+    </ProtectedRoute>
   )
 }
 

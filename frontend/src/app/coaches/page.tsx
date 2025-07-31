@@ -1,80 +1,69 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import CoachPageWrapper from '@/components/CoachPageWrapper'
+import axios from 'axios'
 
-export default function CoachDashboard() {
-  const [appointments, setAppointments] = useState([])
-  const [clients, setClients] = useState([])
+export default function CoachDashboardPage() {
+  const [dashboardData, setDashboardData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
   useEffect(() => {
-    // Mock data for demonstration
-    setAppointments([
-      { id: 1, clientName: 'John Doe', date: '2025-01-28', time: '10:00 AM', status: 'confirmed' },
-      { id: 2, clientName: 'Jane Smith', date: '2025-01-28', time: '2:00 PM', status: 'pending' },
-      { id: 3, clientName: 'Mike Johnson', date: '2025-01-29', time: '11:00 AM', status: 'confirmed' },
-    ])
-    
-    setClients([
-      { id: 1, name: 'John Doe', sessions: 5, lastSession: '2025-01-20' },
-      { id: 2, name: 'Jane Smith', sessions: 3, lastSession: '2025-01-22' },
-      { id: 3, name: 'Mike Johnson', sessions: 8, lastSession: '2025-01-25' },
-    ])
-    
-    setIsLoading(false)
+    loadDashboardData()
   }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true)
+      const response = await axios.get(`${API_URL}/api/coach/dashboard`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (response.data.success) {
+        setDashboardData(response.data.data)
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error)
+      setError('Failed to load dashboard data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-xl text-gray-600">Loading coach dashboard...</div>
-      </div>
+      <CoachPageWrapper title="Dashboard" description="Overview of your coaching practice">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </CoachPageWrapper>
     )
   }
 
+  if (error) {
+    return (
+      <CoachPageWrapper title="Dashboard" description="Overview of your coaching practice">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          {error}
+        </div>
+      </CoachPageWrapper>
+    )
+  }
+
+  const stats = dashboardData?.stats || {}
+  const todayAppointments = dashboardData?.todayAppointments || []
+  const recentClients = dashboardData?.recentClients || []
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <img 
-                src="https://storage.googleapis.com/msgsndr/12p9V9PdtvnTPGSU0BBw/media/672420528abc730356eeaad5.png" 
-                alt="ACT Coaching For Life Logo" 
-                className="h-10 w-auto"
-              />
-              <h1 className="text-xl font-semibold text-gray-900">ACT Coaching For Life - Coach Dashboard</h1>
-            </div>
-            <div className="hidden sm:flex items-center space-x-4">
-              <span className="text-sm text-gray-500">Welcome back, Coach!</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <button className="py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm whitespace-nowrap">
-              Dashboard
-            </button>
-            <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
-              Appointments
-            </button>
-            <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
-              My Clients
-            </button>
-            <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
-              Profile
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <CoachPageWrapper title="Dashboard" description="Overview of your coaching practice">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -86,7 +75,7 @@ export default function CoachDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-                <p className="text-2xl font-bold text-gray-900">2</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.todayAppointments || 0}</p>
               </div>
             </div>
           </div>
@@ -100,7 +89,7 @@ export default function CoachDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Active Clients</p>
-                <p className="text-2xl font-bold text-gray-900">3</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.activeClients || 0}</p>
               </div>
             </div>
           </div>
@@ -114,7 +103,7 @@ export default function CoachDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">This Week Sessions</p>
-                <p className="text-2xl font-bold text-gray-900">8</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.weekSessions || 0}</p>
               </div>
             </div>
           </div>
@@ -128,7 +117,7 @@ export default function CoachDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Rating</p>
-                <p className="text-2xl font-bold text-gray-900">4.8</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.rating || 0}</p>
               </div>
             </div>
           </div>
@@ -143,21 +132,33 @@ export default function CoachDashboard() {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {appointments.filter(apt => apt.date === '2025-01-28').map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{appointment.clientName}</p>
-                      <p className="text-sm text-gray-500">{appointment.time}</p>
+                {todayAppointments.length > 0 ? (
+                  todayAppointments.map((appointment) => (
+                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {appointment.clients ? `${appointment.clients.first_name} ${appointment.clients.last_name}` : 'Client'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(appointment.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        appointment.status === 'confirmed' 
+                          ? 'bg-green-100 text-green-800' 
+                          : appointment.status === 'scheduled'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {appointment.status}
+                      </span>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      appointment.status === 'confirmed' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {appointment.status}
-                    </span>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No appointments scheduled for today</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -169,22 +170,35 @@ export default function CoachDashboard() {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {clients.map((client) => (
-                  <div key={client.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{client.name}</p>
-                      <p className="text-sm text-gray-500">Last session: {client.lastSession}</p>
+                {recentClients.length > 0 ? (
+                  recentClients.map((session) => (
+                    <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {session.clients ? `${session.clients.first_name} ${session.clients.last_name}` : 'Client'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Last session: {new Date(session.scheduled_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-900">
+                          {session.clients?.users?.email && (
+                            <span className="text-xs text-gray-500">{session.clients.users.email}</span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{client.sessions} sessions</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No recent clients</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </CoachPageWrapper>
   )
 }

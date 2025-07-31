@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Heart, Calendar, MessageCircle } from 'lucide-react'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 interface Coach {
   id: string
@@ -35,7 +36,7 @@ interface Coach {
   inPersonAvailable?: boolean
 }
 
-export default function CoachProfile() {
+function CoachProfileContent() {
   const params = useParams()
   const router = useRouter()
   const [coach, setCoach] = useState<Coach | null>(null)
@@ -399,5 +400,13 @@ export default function CoachProfile() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CoachProfile() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <CoachProfileContent />
+    </ProtectedRoute>
   )
 } 

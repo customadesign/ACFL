@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { findMatches } from "@/lib/api"
+import ProtectedRoute from '@/components/ProtectedRoute'
 
-export default function Results() {
+function ResultsContent() {
   const [formData, setFormData] = useState<any>(null)
   const [matches, setMatches] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -54,7 +55,8 @@ export default function Results() {
     setError(null)
     
     try {
-      const newMatches = await findMatches(updatedFormData)
+      const result = await findMatches(updatedFormData)
+      const newMatches = result.matches || []
       setMatches(newMatches)
       setFormData(updatedFormData)
       localStorage.setItem('formData', JSON.stringify(updatedFormData))
@@ -85,15 +87,67 @@ export default function Results() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Finding Your Perfect Coach Matches</h2>
+          <p className="text-gray-600">We're analyzing thousands of coaches to find the best matches for you...</p>
+        </div>
+      </div>
+    )
   }
 
   if (error) {
-    return <div>Error: {error}</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="bg-red-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Oops! Something went wrong</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Try New Search
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (!matches.length) {
-    return <div>No matches found. Please try adjusting your preferences.</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="bg-gray-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No coaches found</h2>
+          <p className="text-gray-600 mb-6">We couldn't find any coaches matching your current preferences. Try adjusting your search criteria for better results.</p>
+          <div className="space-y-3">
+            <button
+              onClick={() => setShowFilters(true)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Modify Search Criteria
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-2 rounded-lg transition-colors"
+            >
+              Start New Search
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -520,152 +574,214 @@ export default function Results() {
           </Card>
         )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-              <h2 className="text-xl font-semibold mb-4">Your Preferences</h2>
+            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4 border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 pb-2 border-b border-gray-200">Your Search Preferences</h2>
               
               {/* Match Summary */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg">
-                <h3 className="font-medium mb-2 text-gray-900">Match Summary</h3>
-                <div className="space-y-2">
+              <div className="mb-6 p-5 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-xl border border-emerald-100">
+                <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
+                  Top Matches
+                </h3>
+                <div className="space-y-3">
                   {matches.slice(0, 3).map((match, index) => (
-                    <div key={match.id || index} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700 truncate mr-2">{match.name}</span>
-                      <span className={`font-medium ${
-                        match.matchScore >= 90 ? 'text-green-600' : 
-                        match.matchScore >= 80 ? 'text-blue-600' : 
-                        'text-gray-600'
+                    <div key={match.id || index} className="flex items-center justify-between p-2 bg-white rounded-lg shadow-sm">
+                      <div className="flex items-center">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white mr-3 ${
+                          index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-400'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <span className="text-sm font-medium text-gray-800 truncate">{match.name}</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        match.matchScore >= 90 ? 'bg-green-100 text-green-700' : 
+                        match.matchScore >= 80 ? 'bg-blue-100 text-blue-700' : 
+                        'bg-gray-100 text-gray-600'
                       }`}>
                         {match.matchScore}%
                       </span>
                     </div>
                   ))}
                   {matches.length > 3 && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      +{matches.length - 3} more coaches
+                    <div className="text-xs text-gray-500 mt-2 text-center">
+                      and {matches.length - 3} more great matches below
                     </div>
                   )}
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-medium mb-2">Areas of Concern</h3>
-                  <div className="flex flex-wrap gap-1">
-                    {formData.areaOfConcern.map((concern: string) => (
-                      <span 
-                        key={concern} 
-                        className="bg-gray-100 text-gray-700 text-sm px-2 py-1 rounded-md"
-                      >
-                        {concern}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Treatment Preferences</h3>
-                  <div className="flex flex-col gap-1">
-                    {formData.treatmentModality.map((modality: string, index: number) => (
-                      <span key={modality} className="text-sm">
-                        {index + 1}. {modality}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Availability</h3>
-                  <div className="flex flex-wrap gap-1">
-                    {formData.availability.map((time: string) => (
-                      <span 
-                        key={time} 
-                        className="bg-gray-100 text-gray-700 text-sm px-2 py-1 rounded-md"
-                      >
-                        {time}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Location</h3>
-                  <p className="text-sm">{STATE_NAMES[formData.location] || formData.location}</p>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Payment Method</h3>
-                  <p className="text-sm">{formData.paymentMethod}</p>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Your Demographics</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-sm font-medium">Gender Identity:</p>
-                      <p className="text-sm">
-                        {formData.genderIdentity}
-                        {formData.genderIdentityOther && ` - ${formData.genderIdentityOther}`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Language:</p>
-                      <p className="text-sm">
-                        {formData.language}
-                        {formData.languageOther && ` - ${formData.languageOther}`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Ethnic Identity:</p>
-                      <p className="text-sm">
-                        {formData.ethnicIdentity}
-                        {formData.ethnicIdentityOther && ` - ${formData.ethnicIdentityOther}`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Religious Background:</p>
-                      <p className="text-sm">
-                        {formData.religiousBackground}
-                        {formData.religiousBackgroundOther && ` - ${formData.religiousBackgroundOther}`}
-                      </p>
+              <div className="space-y-5">
+                {formData?.areaOfConcern && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                      Areas of Concern
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.areaOfConcern.map((concern: string) => (
+                        <span 
+                          key={concern} 
+                          className="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-medium capitalize"
+                        >
+                          {concern.replace(/-/g, ' ')}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <h3 className="font-medium mb-2">Coach Background</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-sm font-medium">Gender:</p>
-                      <p className="text-sm">
-                        {formData.therapistGender}
-                        {formData.therapistGenderOther && ` - ${formData.therapistGenderOther}`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Ethnicity:</p>
-                      <p className="text-sm">
-                        {formData.therapistEthnicity}
-                        {formData.therapistEthnicityOther && ` - ${formData.therapistEthnicityOther}`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Religious Background:</p>
-                      <p className="text-sm">
-                        {formData.therapistReligion}
-                        {formData.therapistReligionOther && ` - ${formData.therapistReligionOther}`}
-                      </p>
+                {formData?.treatmentModality && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      Treatment Preferences
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.treatmentModality.map((modality: string) => (
+                        <span key={modality} className="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium uppercase">
+                          {modality.replace(/-/g, ' ')}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                </div>
+                )}
+
+                {formData?.availability && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                      Availability
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.availability.map((time: string) => (
+                        <span 
+                          key={time} 
+                          className="bg-purple-100 text-purple-800 text-sm px-3 py-1 rounded-full font-medium capitalize"
+                        >
+                          {time.replace('-', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(formData?.location || formData?.paymentMethod) && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                      Logistics
+                    </h3>
+                    <div className="space-y-2">
+                      {formData?.location && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-20">Location:</span>
+                          <span className="text-sm text-gray-800">{STATE_NAMES[formData.location] || formData.location}</span>
+                        </div>
+                      )}
+                      {formData?.paymentMethod && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-20">Payment:</span>
+                          <span className="text-sm text-gray-800 capitalize">{formData.paymentMethod.replace(/-/g, ' ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {(formData?.genderIdentity || formData?.language || formData?.ethnicIdentity || formData?.religiousBackground) && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                      <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
+                      Your Demographics
+                    </h3>
+                    <div className="space-y-2">
+                      {formData?.genderIdentity && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Gender:</span>
+                          <span className="text-sm text-gray-800 capitalize">
+                            {formData.genderIdentity}
+                            {formData.genderIdentityOther && ` - ${formData.genderIdentityOther}`}
+                          </span>
+                        </div>
+                      )}
+                      {formData?.language && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Language:</span>
+                          <span className="text-sm text-gray-800">
+                            {formData.language}
+                            {formData.languageOther && ` - ${formData.languageOther}`}
+                          </span>
+                        </div>
+                      )}
+                      {formData?.ethnicIdentity && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Ethnicity:</span>
+                          <span className="text-sm text-gray-800 capitalize">
+                            {formData.ethnicIdentity}
+                            {formData.ethnicIdentityOther && ` - ${formData.ethnicIdentityOther}`}
+                          </span>
+                        </div>
+                      )}
+                      {formData?.religiousBackground && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Religion:</span>
+                          <span className="text-sm text-gray-800 capitalize">
+                            {formData.religiousBackground}
+                            {formData.religiousBackgroundOther && ` - ${formData.religiousBackgroundOther}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {(formData?.therapistGender || formData?.therapistEthnicity || formData?.therapistReligion) && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 text-gray-900 flex items-center">
+                      <div className="w-2 h-2 bg-pink-500 rounded-full mr-2"></div>
+                      Coach Preferences
+                    </h3>
+                    <div className="space-y-2">
+                      {formData?.therapistGender && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Gender:</span>
+                          <span className="text-sm text-gray-800 capitalize">
+                            {formData.therapistGender}
+                            {formData.therapistGenderOther && ` - ${formData.therapistGenderOther}`}
+                          </span>
+                        </div>
+                      )}
+                      {formData?.therapistEthnicity && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Ethnicity:</span>
+                          <span className="text-sm text-gray-800 capitalize">
+                            {formData.therapistEthnicity}
+                            {formData.therapistEthnicityOther && ` - ${formData.therapistEthnicityOther}`}
+                          </span>
+                        </div>
+                      )}
+                      {formData?.therapistReligion && (
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 w-24">Religion:</span>
+                          <span className="text-sm text-gray-800 capitalize">
+                            {formData.therapistReligion}
+                            {formData.therapistReligionOther && ` - ${formData.therapistReligionOther}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
           <div className="lg:col-span-8">
-            <div className="space-y-4">
+            <div className="space-y-6">
               {matches.map((provider, index) => (
-                <div key={provider.name} className="relative">
+                <div key={provider.id || provider.name} className="transform transition-all duration-300 hover:scale-[1.01]">
                   <ProviderCard {...provider} isBestMatch={index === 0} />
                 </div>
               ))}
@@ -674,5 +790,13 @@ export default function Results() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Results() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <ResultsContent />
+    </ProtectedRoute>
   )
 } 

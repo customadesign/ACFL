@@ -1,98 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, Video, MapPin, Phone, MessageCircle } from "lucide-react"
+import ProtectedRoute from '@/components/ProtectedRoute'
+import axios from 'axios'
 
 interface Appointment {
   id: string
-  coachName: string
-  coachId: string
-  date: string
-  time: string
-  type: 'virtual' | 'in-person'
-  location?: string
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled'
-  sessionType: string
+  client_id: string
+  coach_id: string
+  scheduled_at: string
+  duration: number
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+  session_type?: string
   notes?: string
-  meetingLink?: string
-  videoSDKMeetingId?: string
+  meeting_link?: string
+  coaches?: {
+    id: string
+    first_name: string
+    last_name: string
+    specialties: string[]
+    users: {
+      email: string
+    }
+  }
 }
 
-const mockAppointments: Appointment[] = [
-  {
-    id: "1",
-    coachName: "Richard Peng",
-    coachId: "1",
-    date: "2024-01-15",
-    time: "10:00 AM",
-    type: "virtual",
-    status: "confirmed",
-    sessionType: "Initial Consultation",
-    notes: "Anxiety management and stress reduction focus",
-    meetingLink: "https://app.videosdk.live/meeting/abc-defg-hij",
-    videoSDKMeetingId: "abc-defg-hij"
-  },
-  {
-    id: "2",
-    coachName: "Alice Zhang",
-    coachId: "2",
-    date: "2024-01-18",
-    time: "2:00 PM",
-    type: "virtual",
-    status: "confirmed",
-    sessionType: "Follow-up Session",
-    notes: "Mindfulness practices and values clarification",
-    meetingLink: "https://app.videosdk.live/meeting/xyz-uvw-rst",
-    videoSDKMeetingId: "xyz-uvw-rst"
-  },
-  {
-    id: "3",
-    coachName: "Maria Rodriguez",
-    coachId: "3",
-    date: "2024-01-22",
-    time: "11:30 AM",
-    type: "in-person",
-    location: "123 Wellness Center, Austin, TX",
-    status: "confirmed",
-    sessionType: "Trauma Recovery Session",
-    notes: "EMDR therapy and coping strategies"
-  },
-  {
-    id: "4",
-    coachName: "David Thompson",
-    coachId: "4",
-    date: "2024-01-25",
-    time: "4:00 PM",
-    type: "virtual",
-    status: "pending",
-    sessionType: "Executive Coaching",
-    notes: "Work-life balance and leadership skills",
-    meetingLink: "https://app.videosdk.live/meeting/def-ghi-jkl",
-    videoSDKMeetingId: "def-ghi-jkl"
-  },
-  {
-    id: "5",
-    coachName: "Dr. Sarah Kim",
-    coachId: "6",
-    date: "2024-01-29",
-    time: "9:00 AM",
-    type: "virtual",
-    status: "confirmed",
-    sessionType: "Perfectionism Workshop",
-    notes: "Self-compassion techniques and mindfulness",
-    meetingLink: "https://app.videosdk.live/meeting/mno-pqr-stu",
-    videoSDKMeetingId: "mno-pqr-stu"
-  }
-]
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'confirmed':
       return 'bg-green-100 text-green-800'
-    case 'pending':
+    case 'scheduled':
       return 'bg-yellow-100 text-yellow-800'
     case 'completed':
       return 'bg-gray-100 text-gray-800'
@@ -113,11 +55,53 @@ const formatDate = (dateString: string) => {
   })
 }
 
-export default function AppointmentsPage() {
+function AppointmentsContent() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const upcomingAppointments = mockAppointments.filter(apt => apt.status !== 'completed')
-  const pastAppointments = mockAppointments.filter(apt => apt.status === 'completed')
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+  useEffect(() => {
+    loadAppointments()
+  }, [activeTab])
+
+  const loadAppointments = async () => {
+    try {
+      setLoading(true)
+      const filter = activeTab === 'upcoming' ? 'upcoming' : 'past'
+      const response = await axios.get(`${API_URL}/api/client/appointments`, {
+        params: { filter },
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (response.data.success) {
+        setAppointments(response.data.data)
+      }
+    } catch (error) {
+      console.error('Error loading appointments:', error)
+      setError('Failed to load appointments')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const upcomingAppointments = appointments.filter(apt => apt.status !== 'completed')
+  const pastAppointments = appointments.filter(apt => apt.status === 'completed')
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading appointments...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -164,6 +148,13 @@ export default function AppointmentsPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Appointments</h2>
@@ -204,7 +195,7 @@ export default function AppointmentsPage() {
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-3">
                     <h3 className="text-xl font-semibold text-gray-900">
-                      {appointment.sessionType}
+                      {appointment.session_type || 'Coaching Session'}
                     </h3>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                       {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -215,33 +206,24 @@ export default function AppointmentsPage() {
                     <div className="space-y-2">
                       <div className="flex items-center text-gray-600">
                         <Calendar className="w-4 h-4 mr-2" />
-                        <span>{formatDate(appointment.date)}</span>
+                        <span>{formatDate(appointment.scheduled_at)}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
                         <Clock className="w-4 h-4 mr-2" />
-                        <span>{appointment.time}</span>
+                        <span>{new Date(appointment.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
-                        {appointment.type === 'virtual' ? (
-                          <Video className="w-4 h-4 mr-2" />
-                        ) : (
-                          <MapPin className="w-4 h-4 mr-2" />
-                        )}
-                        <span>
-                          {appointment.type === 'virtual' 
-                            ? 'Virtual Session' 
-                            : appointment.location
-                          }
-                        </span>
+                        <Video className="w-4 h-4 mr-2" />
+                        <span>Virtual Session</span>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center text-gray-600">
                         <span className="font-medium">Coach:</span>
-                        <Link href={`/coach/${appointment.coachId}`}>
+                        <Link href={`/coach/${appointment.coach_id}`}>
                           <span className="ml-2 text-blue-600 hover:text-blue-800 cursor-pointer">
-                            {appointment.coachName}
+                            {appointment.coaches ? `${appointment.coaches.first_name} ${appointment.coaches.last_name}` : 'Coach'}
                           </span>
                         </Link>
                       </div>
@@ -251,26 +233,23 @@ export default function AppointmentsPage() {
                           <span className="ml-2">{appointment.notes}</span>
                         </div>
                       )}
+                      <div className="text-gray-600">
+                        <span className="font-medium">Duration:</span>
+                        <span className="ml-2">{appointment.duration || 60} minutes</span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-3">
-                    {appointment.type === 'virtual' && appointment.meetingLink && (
-                      <>
-                        <Button 
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => window.open(appointment.meetingLink, '_blank')}
-                        >
-                          <Video className="w-4 h-4 mr-2" />
-                          Join VideoSDK Session
-                        </Button>
-                        {appointment.videoSDKMeetingId && (
-                          <div className="flex items-center text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-                            <span>ID: {appointment.videoSDKMeetingId}</span>
-                          </div>
-                        )}
-                      </>
+                    {appointment.meeting_link && (
+                      <Button 
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => window.open(appointment.meeting_link, '_blank')}
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        Join Session
+                      </Button>
                     )}
                     <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
                       <MessageCircle className="w-4 h-4 mr-2" />
@@ -280,7 +259,7 @@ export default function AppointmentsPage() {
                       <Calendar className="w-4 h-4 mr-2" />
                       Reschedule
                     </Button>
-                    {appointment.status === 'pending' && (
+                    {appointment.status === 'scheduled' && (
                       <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
                         Cancel
                       </Button>
@@ -374,5 +353,13 @@ export default function AppointmentsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AppointmentsPage() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <AppointmentsContent />
+    </ProtectedRoute>
   )
 } 
