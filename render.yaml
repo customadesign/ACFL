@@ -1,0 +1,62 @@
+services:
+  # Backend API Service
+  - type: web
+    name: therapist-matcher-backend
+    runtime: node
+    plan: starter
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: therapist-matcher-frontend
+          property: url
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BCRYPT_ROUNDS
+        value: 12
+
+  # Frontend Next.js Service
+  - type: web
+    name: therapist-matcher-frontend
+    runtime: node
+    plan: starter
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: therapist-matcher-backend
+          property: url
+      - key: NEXT_PUBLIC_APP_NAME
+        value: ACT Coaching For Life
+      - key: NEXT_PUBLIC_ENABLE_PAYMENTS
+        value: false
+      - key: NEXT_PUBLIC_ENABLE_VIDEO_SESSIONS
+        value: false
+      - key: NEXT_PUBLIC_ENABLE_NOTIFICATIONS
+        value: true
+      - key: NEXT_PUBLIC_DEBUG_MODE
+        value: false
+      - key: NEXT_PUBLIC_LOG_LEVEL
+        value: error
