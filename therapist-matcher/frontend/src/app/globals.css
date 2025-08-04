@@ -2,8 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 @layer base {
   :root {
+    /* ACT Coaching For Life Brand Colors */
+    --brand-teal: #25A7B8;
+    --brand-orange: #F7931D;
+    --brand-coral: #E84D3D;
+    --brand-leaf: #79B85A;
+    --ink-dark: #333333;
+    --gray-lite: #F6F7F8;
+
+    /* Original shadcn/ui variables */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -33,5 +46,12 @@
     --ring: 222.2 84% 4.9%;
  
     --radius: 0.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --gray-lite: #1C1C1C;
+      --ink-dark: #F1F1F1;
+    }
   }
 } 
