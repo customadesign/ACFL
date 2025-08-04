@@ -133,7 +133,7 @@ export default function CoachDashboardPage() {
             <div className="p-6">
               <div className="space-y-4">
                 {todayAppointments.length > 0 ? (
-                  todayAppointments.map((appointment) => (
+                  todayAppointments.map((appointment: any) => (
                     <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-900">
@@ -171,7 +171,7 @@ export default function CoachDashboardPage() {
             <div className="p-6">
               <div className="space-y-4">
                 {recentClients.length > 0 ? (
-                  recentClients.map((session) => (
+                  recentClients.map((session: any) => (
                     <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-900">

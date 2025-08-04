@@ -105,7 +105,7 @@ function MessagesContent() {
         setMessages(response.data.data)
         // Mark messages as read
         response.data.data.forEach((message: Message) => {
-          if (message.receiver_id === user?.userId && !message.is_read) {
+          if (message.receiver_id === user?.id && !message.is_read) {
             markAsRead(message.id)
           }
         })
@@ -366,11 +366,11 @@ function MessagesContent() {
                       messages.map((message) => (
                         <div
                           key={message.id}
-                          className={`flex ${message.sender_id === user?.userId ? 'justify-end' : 'justify-start'}`}
+                          className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
                             className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                              message.sender_id === user?.userId
+                              message.sender_id === user?.id
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-gray-200 text-gray-900'
                             }`}
@@ -379,7 +379,7 @@ function MessagesContent() {
                             <p className="text-sm">{message.content}</p>
                             <div className="flex items-center justify-between mt-2">
                               <p className={`text-xs ${
-                                message.sender_id === user?.userId ? 'text-blue-100' : 'text-gray-500'
+                                message.sender_id === user?.id ? 'text-blue-100' : 'text-gray-500'
                               }`}>
                                 {formatDate(message.created_at)}
                               </p>
