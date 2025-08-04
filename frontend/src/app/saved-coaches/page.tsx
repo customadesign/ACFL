@@ -6,6 +6,9 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Star, Calendar, Video, MapPin, MessageCircle, Trash2 } from "lucide-react"
 import ProtectedRoute from '@/components/ProtectedRoute'
+import BookingModal from '@/components/BookingModal'
+import MessageCoachModal from '@/components/MessageCoachModal'
+import { useAuth } from '@/contexts/AuthContext'
 import axios from 'axios'
 
 interface SavedCoach {
@@ -21,13 +24,18 @@ interface SavedCoach {
   experience: string
   rating: number
   email?: string
+  fakeAppointment?: any
 }
 
 
 function SavedCoachesContent() {
+  const { user, logout, isAuthenticated } = useAuth()
   const [savedCoaches, setSavedCoaches] = useState<SavedCoach[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedCoach, setSelectedCoach] = useState<SavedCoach | null>(null)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -71,6 +79,33 @@ function SavedCoachesContent() {
     }
   }
 
+  const handleScheduleSession = (coach: SavedCoach) => {
+    setSelectedCoach(coach)
+    setShowBookingModal(true)
+  }
+
+  const handleSendMessage = (coach: SavedCoach) => {
+    // Create a fake appointment object for the message modal
+    const fakeAppointment = {
+      id: 'temp-' + Date.now(),
+      coach_id: coach.id,
+      coaches: {
+        first_name: coach.name.split(' ')[0],
+        last_name: coach.name.split(' ').slice(1).join(' ') || '',
+        id: coach.id
+      },
+      scheduled_at: new Date().toISOString(),
+      session_type: 'General Inquiry'
+    }
+    setSelectedCoach({...coach, fakeAppointment})
+    setShowMessageModal(true)
+  }
+
+  const handleModalSuccess = () => {
+    // Reload saved coaches if needed
+    loadSavedCoaches()
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
@@ -102,11 +137,27 @@ function SavedCoachesContent() {
               />
               <h1 className="text-xl font-semibold text-gray-900">ACT Coaching For Life</h1>
             </div>
-            <Link href="/">
-              <button className="text-sm bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors">
-                ← New Search
-              </button>
-            </Link>
+            <div className="hidden sm:flex items-center space-x-4">
+              {isAuthenticated ? (
+                <>
+                  <span className="text-sm text-gray-500">
+                    Welcome, {user?.firstName || user?.email}!
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link href="/">
+                  <button className="text-sm bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors">
+                    ← New Search
+                  </button>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -126,6 +177,11 @@ function SavedCoachesContent() {
             <Link href="/appointments">
               <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
                 Appointments
+              </button>
+            </Link>
+            <Link href="/messages">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Messages
               </button>
             </Link>
           </div>
@@ -273,11 +329,19 @@ function SavedCoachesContent() {
                           View Full Profile
                         </Button>
                       </Link>
-                      <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50">
+                      <Button 
+                        variant="outline" 
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                        onClick={() => handleScheduleSession(coach)}
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         Schedule Session
                       </Button>
-                      <Button variant="outline" className="text-purple-600 border-purple-600 hover:bg-purple-50">
+                      <Button 
+                        variant="outline" 
+                        className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                        onClick={() => handleSendMessage(coach)}
+                      >
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Send Message
                       </Button>
@@ -318,6 +382,40 @@ function SavedCoachesContent() {
               </Link>
             </div>
           </Card>
+        )}
+
+        {/* Modals */}
+        {selectedCoach && (
+          <>
+            <BookingModal
+              isOpen={showBookingModal}
+              onClose={() => setShowBookingModal(false)}
+              coach={{
+                id: selectedCoach.id,
+                name: selectedCoach.name,
+                sessionRate: selectedCoach.sessionRate,
+                virtualAvailable: selectedCoach.virtualAvailable,
+                inPersonAvailable: selectedCoach.inPersonAvailable
+              }}
+              sessionType="session"
+            />
+            <MessageCoachModal
+              isOpen={showMessageModal}
+              onClose={() => setShowMessageModal(false)}
+              appointment={selectedCoach.fakeAppointment || {
+                id: 'temp-' + Date.now(),
+                coach_id: selectedCoach.id,
+                coaches: {
+                  first_name: selectedCoach.name.split(' ')[0],
+                  last_name: selectedCoach.name.split(' ').slice(1).join(' ') || '',
+                  id: selectedCoach.id
+                },
+                scheduled_at: new Date().toISOString(),
+                session_type: 'General Inquiry'
+              }}
+              onSuccess={handleModalSuccess}
+            />
+          </>
         )}
       </div>
     </div>

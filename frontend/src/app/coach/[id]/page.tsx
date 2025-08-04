@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Heart, Calendar, MessageCircle } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import BookingModal from '@/components/BookingModal'
 
 interface Coach {
   id: string
@@ -42,6 +43,8 @@ function CoachProfileContent() {
   const [coach, setCoach] = useState<Coach | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSaved, setIsSaved] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [bookingType, setBookingType] = useState<'consultation' | 'session'>('consultation')
 
   useEffect(() => {
     // Fetch coach data based on ID
@@ -152,6 +155,16 @@ function CoachProfileContent() {
     fetchCoach()
   }, [params.id])
 
+  const handleBookConsultation = () => {
+    setBookingType('consultation')
+    setShowBookingModal(true)
+  }
+
+  const handleBookSession = () => {
+    setBookingType('session')
+    setShowBookingModal(true)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
@@ -258,7 +271,10 @@ function CoachProfileContent() {
                   <p className="font-medium">{coach.phone}</p>
                 </div>
               </div>
-              <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
+              <Button 
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
+                onClick={handleBookConsultation}
+              >
                 Schedule Consultation
               </Button>
             </Card>
@@ -392,13 +408,26 @@ function CoachProfileContent() {
               <p className="text-gray-700 mb-4">
                 Schedule a free 15-minute consultation to see if we're a good fit for your coaching needs.
               </p>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={handleBookConsultation}
+              >
                 Book Free Consultation
               </Button>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {coach && (
+        <BookingModal
+          isOpen={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          coach={coach}
+          sessionType={bookingType}
+        />
+      )}
     </div>
   )
 }

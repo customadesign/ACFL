@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { X, MessageCircle, User, Calendar, Clock, FileText } from 'lucide-react';
 import CoachPageWrapper from '@/components/CoachPageWrapper';
+import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 
 interface Client {
   id: string;
+  user_id: string; // Add user_id for messaging
   name: string;
   email: string;
   phone?: string;
@@ -21,12 +24,18 @@ interface Client {
 }
 
 export default function MyClientsPage() {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [error, setError] = useState('');
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageContent, setMessageContent] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -63,6 +72,51 @@ export default function MyClientsPage() {
 
   const getStatusColor = (status: string) => {
     return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+  };
+
+  const handleViewDetails = (client: Client) => {
+    setSelectedClient(client);
+    setShowDetailsModal(true);
+  };
+
+  const handleSendMessage = (client: Client) => {
+    setSelectedClient(client);
+    setMessageSubject('');
+    setMessageContent('');
+    setShowMessageModal(true);
+  };
+
+  const handleSendMessageSubmit = async () => {
+    if (!selectedClient || !messageSubject.trim() || !messageContent.trim()) return;
+
+    try {
+      setSendingMessage(true);
+      
+      // Use the client's user_id for messaging
+      const response = await axios.post(`${API_URL}/api/coach/send-message`, {
+        receiverId: selectedClient.user_id, // Use user_id instead of client.id
+        subject: messageSubject.trim(),
+        content: messageContent.trim(),
+        messageType: 'general'
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.success) {
+        setShowMessageModal(false);
+        setMessageSubject('');
+        setMessageContent('');
+        setSelectedClient(null);
+        // Show success message or redirect to messages
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setError('Failed to send message');
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   if (loading) {
@@ -239,17 +293,20 @@ export default function MyClientsPage() {
 
                 <div className="flex space-x-2">
                   <Button
-                    onClick={() => setSelectedClient(client)}
+                    onClick={() => handleViewDetails(client)}
                     className="flex-1 bg-blue-600 hover:bg-blue-700"
                     size="sm"
                   >
+                    <User className="w-4 h-4 mr-1" />
                     View Details
                   </Button>
                   <Button
+                    onClick={() => handleSendMessage(client)}
                     variant="outline"
                     size="sm"
                     className="flex-1"
                   >
+                    <MessageCircle className="w-4 h-4 mr-1" />
                     Send Message
                   </Button>
                 </div>
@@ -258,6 +315,199 @@ export default function MyClientsPage() {
           ))
         )}
       </div>
+
+      {/* Client Details Modal */}
+      {showDetailsModal && selectedClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-xl font-semibold">
+                Client Details - {selectedClient.name}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDetailsModal(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Contact Information */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Name</p>
+                    <p className="text-sm text-gray-900">{selectedClient.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Email</p>
+                    <p className="text-sm text-gray-900">{selectedClient.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Phone</p>
+                    <p className="text-sm text-gray-900">{selectedClient.phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Status</p>
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(selectedClient.status)}`}>
+                      {selectedClient.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Session Information */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Session History</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Total Sessions</p>
+                    <p className="text-sm text-gray-900">{selectedClient.totalSessions}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Client Since</p>
+                    <p className="text-sm text-gray-900">
+                      {new Date(selectedClient.startDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Last Session</p>
+                    <p className="text-sm text-gray-900">
+                      {selectedClient.lastSession ? new Date(selectedClient.lastSession).toLocaleDateString() : 'No sessions yet'}
+                    </p>
+                  </div>
+                  {selectedClient.nextSession && (
+                    <div className="md:col-span-3">
+                      <p className="text-sm font-medium text-gray-500">Next Session</p>
+                      <p className="text-sm text-gray-900 flex items-center">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        {new Date(selectedClient.nextSession).toLocaleDateString()} at{' '}
+                        {new Date(selectedClient.nextSession).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Areas of Focus */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Areas of Focus</h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedClient.concerns.map((concern, index) => (
+                    <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                      {concern}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedClient.notes && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Notes</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-900">{selectedClient.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    handleSendMessage(selectedClient);
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Send Message
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDetailsModal(false)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Send Message Modal */}
+      {showMessageModal && selectedClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-xl font-semibold">
+                Send Message to {selectedClient.name}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMessageModal(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subject *
+                </label>
+                <input
+                  type="text"
+                  value={messageSubject}
+                  onChange={(e) => setMessageSubject(e.target.value)}
+                  placeholder="Message subject..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  maxLength={200}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message *
+                </label>
+                <textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  placeholder="Type your message here..."
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  maxLength={1000}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  {messageContent.length}/1000 characters
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowMessageModal(false)}
+                  className="flex-1"
+                  disabled={sendingMessage}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendMessageSubmit}
+                  disabled={sendingMessage || !messageSubject.trim() || !messageContent.trim()}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  {sendingMessage ? 'Sending...' : 'Send Message'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </CoachPageWrapper>
   );
 }

@@ -195,14 +195,79 @@ const coaches = [
   // but the individual profile pages will only work for coaches 1-8 with full details.
 ];
 
-export const getCoachById = (req: Request, res: Response) => {
+export const getCoachById = async (req: Request, res: Response) => {
   const { id } = req.params;
   
-  const coach = coaches.find(c => c.id === id);
-  
-  if (!coach) {
-    return res.status(404).json({ error: 'Coach not found' });
+  try {
+    // Import supabase at the top of the function
+    const { supabase } = require('../lib/supabase');
+    
+    // Fetch coach from database
+    const { data: coach, error } = await supabase
+      .from('coaches')
+      .select(`
+        *,
+        users (email),
+        coach_demographics (
+          gender,
+          ethnicity,
+          religion,
+          location_states,
+          available_times,
+          video_available,
+          in_person_available,
+          phone_available,
+          insurance_accepted,
+          min_age,
+          max_age
+        )
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Database error:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
+    }
+    
+    if (!coach) {
+      console.log('No coach found with ID:', id);
+      return res.status(404).json({ error: 'Coach not found' });
+    }
+    
+    // Format the response to match the expected structure
+    const demographics = coach.coach_demographics || {};
+    const formattedCoach = {
+      id: coach.id,
+      name: `${coach.first_name} ${coach.last_name}`,
+      specialties: coach.specialties || [],
+      modalities: ["ACT"], // Default to ACT since all coaches use ACT
+      location: demographics.location_states || [],
+      demographics: {
+        gender: demographics.gender || '',
+        ethnicity: demographics.ethnicity || '',
+        religion: demographics.religion || ''
+      },
+      availability: coach.is_available ? 1 : 0,
+      matchScore: 0,
+      languages: coach.languages || [],
+      bio: coach.bio || '',
+      sexualOrientation: '', // Not stored in current schema
+      availableTimes: demographics.available_times || [],
+      email: coach.users?.email || '',
+      phone: coach.phone || '',
+      experience: coach.experience ? `${coach.experience} years` : '',
+      education: '', // Not stored in current schema
+      certifications: coach.qualifications || [],
+      insuranceAccepted: demographics.insurance_accepted || [],
+      sessionRate: coach.hourly_rate ? `$${coach.hourly_rate}/session` : '',
+      virtualAvailable: demographics.video_available || true,
+      inPersonAvailable: demographics.in_person_available || false
+    };
+    
+    res.json(formattedCoach);
+  } catch (error) {
+    console.error('Error fetching coach:', error);
+    res.status(500).json({ error: 'Failed to fetch coach profile' });
   }
-  
-  res.json(coach);
 }; 

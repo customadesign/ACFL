@@ -6,6 +6,10 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, Video, MapPin, Phone, MessageCircle } from "lucide-react"
 import ProtectedRoute from '@/components/ProtectedRoute'
+import RescheduleModal from '@/components/RescheduleModal'
+import CancelModal from '@/components/CancelModal'
+import MessageCoachModal from '@/components/MessageCoachModal'
+import { useAuth } from '@/contexts/AuthContext'
 import axios from 'axios'
 
 interface Appointment {
@@ -56,10 +60,15 @@ const formatDate = (dateString: string) => {
 }
 
 function AppointmentsContent() {
+  const { user, logout, isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -92,6 +101,26 @@ function AppointmentsContent() {
   const upcomingAppointments = appointments.filter(apt => apt.status !== 'completed')
   const pastAppointments = appointments.filter(apt => apt.status === 'completed')
 
+  const handleReschedule = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setShowRescheduleModal(true)
+  }
+
+  const handleCancel = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setShowCancelModal(true)
+  }
+
+  const handleMessage = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setShowMessageModal(true)
+  }
+
+  const handleModalSuccess = () => {
+    // Reload appointments after successful action
+    loadAppointments()
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
@@ -117,11 +146,27 @@ function AppointmentsContent() {
               />
               <h1 className="text-xl font-semibold text-gray-900">ACT Coaching For Life</h1>
             </div>
-            <Link href="/">
-              <button className="text-sm bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors">
-                ← New Search
-              </button>
-            </Link>
+            <div className="hidden sm:flex items-center space-x-4">
+              {isAuthenticated ? (
+                <>
+                  <span className="text-sm text-gray-500">
+                    Welcome, {user?.firstName || user?.email}!
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link href="/">
+                  <button className="text-sm bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors">
+                    ← New Search
+                  </button>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -143,6 +188,11 @@ function AppointmentsContent() {
             <button className="py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm whitespace-nowrap">
               Appointments
             </button>
+            <Link href="/messages">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Messages
+              </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -251,16 +301,28 @@ function AppointmentsContent() {
                         Join Session
                       </Button>
                     )}
-                    <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                    <Button 
+                      variant="outline" 
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                      onClick={() => handleMessage(appointment)}
+                    >
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Message Coach
                     </Button>
-                    <Button variant="outline" className="text-gray-600 border-gray-300 hover:bg-gray-50">
+                    <Button 
+                      variant="outline" 
+                      className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                      onClick={() => handleReschedule(appointment)}
+                    >
                       <Calendar className="w-4 h-4 mr-2" />
                       Reschedule
                     </Button>
                     {appointment.status === 'scheduled' && (
-                      <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
+                      <Button 
+                        variant="outline" 
+                        className="text-red-600 border-red-600 hover:bg-red-50"
+                        onClick={() => handleCancel(appointment)}
+                      >
                         Cancel
                       </Button>
                     )}
@@ -350,6 +412,30 @@ function AppointmentsContent() {
               </Button>
             </div>
           </Card>
+        )}
+
+        {/* Modals */}
+        {selectedAppointment && (
+          <>
+            <RescheduleModal
+              isOpen={showRescheduleModal}
+              onClose={() => setShowRescheduleModal(false)}
+              appointment={selectedAppointment}
+              onSuccess={handleModalSuccess}
+            />
+            <CancelModal
+              isOpen={showCancelModal}
+              onClose={() => setShowCancelModal(false)}
+              appointment={selectedAppointment}
+              onSuccess={handleModalSuccess}
+            />
+            <MessageCoachModal
+              isOpen={showMessageModal}
+              onClose={() => setShowMessageModal(false)}
+              appointment={selectedAppointment}
+              onSuccess={handleModalSuccess}
+            />
+          </>
         )}
       </div>
     </div>

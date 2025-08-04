@@ -34,13 +34,14 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     loadAppointments();
-  }, [filter]);
+  }, []); // Remove filter dependency since we always get all appointments
 
   const loadAppointments = async () => {
     try {
       setLoading(true);
+      // Always get all appointments for proper tab counting
       const response = await axios.get(`${API_URL}/api/coach/appointments`, {
-        params: { filter },
+        params: { filter: 'all' },
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -157,14 +158,34 @@ export default function AppointmentsPage() {
 
       {/* Appointments List */}
       <div className="space-y-4">
-        {appointments.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-gray-500">No appointments found</p>
-            </CardContent>
-          </Card>
-        ) : (
-          appointments.map((appointment) => (
+        {(() => {
+          // Filter appointments based on selected tab
+          const filteredAppointments = appointments.filter(apt => {
+            const appointmentDate = new Date(apt.scheduled_at);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            switch (filter) {
+              case 'upcoming':
+                return appointmentDate >= today && apt.status !== 'cancelled';
+              case 'past':
+                return appointmentDate < today || apt.status === 'completed';
+              case 'pending':
+                return apt.status === 'scheduled';
+              case 'all':
+              default:
+                return true;
+            }
+          });
+
+          return filteredAppointments.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-gray-500">No {filter} appointments found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredAppointments.map((appointment) => (
             <Card key={appointment.id}>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
@@ -249,8 +270,9 @@ export default function AppointmentsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
+            ))
+          );
+        })()}
       </div>
     </CoachPageWrapper>
   );

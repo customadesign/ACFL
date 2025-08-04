@@ -17,6 +17,7 @@ export default function CoachLayout({
   const navItems = [
     { name: 'Dashboard', href: '/coaches' },
     { name: 'Appointments', href: '/coaches/appointments' },
+    { name: 'Messages', href: '/coaches/messages' },
     { name: 'My Clients', href: '/coaches/clients' },
     { name: 'Profile', href: '/coaches/profile' },
   ];

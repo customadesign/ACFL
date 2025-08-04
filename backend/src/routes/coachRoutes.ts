@@ -349,6 +349,7 @@ router.get('/coach/clients', authenticate, async (req: Request & { user?: any },
         status,
         clients (
           id,
+          user_id,
           first_name,
           last_name,
           phone,
@@ -377,6 +378,7 @@ router.get('/coach/clients', authenticate, async (req: Request & { user?: any },
       if (!clientsMap.has(clientId)) {
         clientsMap.set(clientId, {
           id: client.id,
+          user_id: client.user_id, // Add user_id for messaging
           name: `${client.first_name} ${client.last_name}`,
           email: client.users?.email || '',
           phone: client.phone || '',
@@ -561,7 +563,300 @@ router.get('/coach/profile/stats', authenticate, async (req: Request & { user?: 
   }
 });
 
-// Get coach by ID (put parameterized routes after specific ones)
+
+// Removed - moving to end of file
+
+// Get coach messages/conversations
+router.get('/coach/messages', authenticate, async (req: Request & { user?: any }, res: Response) => {
+  try {
+    const { page = 1, limit = 20, conversation_with } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    let query = supabase
+      .from('messages')
+      .select(`
+        id,
+        sender_id,
+        receiver_id,
+        session_id,
+        subject,
+        content,
+        is_read,
+        message_type,
+        priority,
+        created_at
+      `)
+      .or(`sender_id.eq.${req.user.userId},receiver_id.eq.${req.user.userId}`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + Number(limit) - 1);
+
+    if (conversation_with) {
+      query = query.or(`and(sender_id.eq.${req.user.userId},receiver_id.eq.${conversation_with}),and(sender_id.eq.${conversation_with},receiver_id.eq.${req.user.userId})`);
+    }
+
+    const { data: messages, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    // Get unique user IDs for fetching user details
+    const userIds = new Set();
+    messages?.forEach(message => {
+      userIds.add(message.sender_id);
+      userIds.add(message.receiver_id);
+    });
+
+    // Fetch user details
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, role')
+      .in('id', Array.from(userIds));
+
+    if (usersError) {
+      throw usersError;
+    }
+
+    // Create a map of user details
+    const usersMap = new Map();
+    users?.forEach(user => {
+      usersMap.set(user.id, user);
+    });
+
+    // Add user details to messages
+    const messagesWithUsers = messages?.map(message => ({
+      ...message,
+      sender: usersMap.get(message.sender_id),
+      receiver: usersMap.get(message.receiver_id)
+    }));
+
+    res.json({
+      success: true,
+      data: messagesWithUsers,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: messagesWithUsers?.length || 0
+      }
+    });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch messages' });
+  }
+});
+
+
+// Get coach conversations (unique participants)
+router.get('/coach/conversations', authenticate, async (req: Request & { user?: any }, res: Response) => {
+  try {
+    const { data: messages, error } = await supabase
+      .from('messages')
+      .select(`
+        sender_id,
+        receiver_id,
+        subject,
+        content,
+        is_read,
+        created_at
+      `)
+      .or(`sender_id.eq.${req.user.userId},receiver_id.eq.${req.user.userId}`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Get unique partner IDs
+    const partnerIds = new Set();
+    messages?.forEach(message => {
+      const partnerId = message.sender_id === req.user.userId ? message.receiver_id : message.sender_id;
+      partnerIds.add(partnerId);
+    });
+
+    // Fetch user details for all partners
+    const { data: partners, error: partnersError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, role')
+      .in('id', Array.from(partnerIds));
+
+    if (partnersError) {
+      throw partnersError;
+    }
+
+    // Create a map of partner details
+    const partnersMap = new Map();
+    partners?.forEach(partner => {
+      partnersMap.set(partner.id, partner);
+    });
+
+    // Group by conversation partners
+    const conversationsMap = new Map();
+    
+    messages?.forEach(message => {
+      const partnerId = message.sender_id === req.user.userId ? message.receiver_id : message.sender_id;
+      const partner = partnersMap.get(partnerId);
+      
+      if (!conversationsMap.has(partnerId)) {
+        conversationsMap.set(partnerId, {
+          partnerId,
+          partner,
+          lastMessage: message,
+          unreadCount: 0,
+          totalMessages: 0
+        });
+      }
+      
+      const conversation = conversationsMap.get(partnerId);
+      conversation.totalMessages++;
+      
+      // Count unread messages (received by current user and not read)
+      if (message.receiver_id === req.user.userId && !message.is_read) {
+        conversation.unreadCount++;
+      }
+    });
+
+    const conversations = Array.from(conversationsMap.values());
+
+    res.json({
+      success: true,
+      data: conversations
+    });
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch conversations' });
+  }
+});
+
+// Mark messages as read
+router.put('/coach/messages/:messageId/read', authenticate, async (req: Request & { user?: any }, res: Response) => {
+  try {
+    const { messageId } = req.params;
+
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('id', messageId)
+      .eq('receiver_id', req.user.userId); // Only mark as read if current user is receiver
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      message: 'Message marked as read'
+    });
+  } catch (error) {
+    console.error('Mark message read error:', error);
+    res.status(500).json({ success: false, message: 'Failed to mark message as read' });
+  }
+});
+
+// Test endpoint
+router.post('/coach/test-message', authenticate, async (req: Request & { user?: any }, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Coach message endpoint is working',
+      user: req.user,
+      body: req.body
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Test failed' });
+  }
+});
+
+// Send message to client
+router.post('/coach/send-message', [
+  authenticate,
+  body('receiverId').notEmpty().withMessage('Receiver ID is required'),
+  body('subject').notEmpty().withMessage('Subject is required'),
+  body('content').notEmpty().withMessage('Message content is required'),
+  body('messageType').optional().isIn(['general', 'booking', 'cancellation', 'emergency']).withMessage('Invalid message type'),
+  body('priority').optional().isIn(['low', 'normal', 'high', 'urgent']).withMessage('Invalid priority')
+], async (req: Request & { user?: any }, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { receiverId, subject, content, messageType = 'general', priority = 'normal', sessionId } = req.body;
+
+    // Verify receiver exists
+    const { data: receiver, error: receiverError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, role')
+      .eq('id', receiverId)
+      .single();
+
+    if (receiverError || !receiver) {
+      return res.status(404).json({ success: false, message: 'Receiver not found' });
+    }
+
+    // Store message in database
+    const { data: newMessage, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        sender_id: req.user.userId,
+        receiver_id: receiverId,
+        session_id: sessionId || null,
+        subject: subject,
+        content: content,
+        message_type: messageType,
+        priority: priority
+      })
+      .select(`
+        id,
+        sender_id,
+        receiver_id,
+        subject,
+        content,
+        message_type,
+        priority,
+        created_at
+      `)
+      .single();
+
+    if (messageError) {
+      console.error('Database error:', messageError);
+      return res.status(500).json({ success: false, message: 'Failed to send message' });
+    }
+
+    // Fetch user details for sender and receiver
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email')
+      .in('id', [newMessage.sender_id, newMessage.receiver_id]);
+
+    if (usersError) {
+      console.error('Users fetch error:', usersError);
+      return res.status(500).json({ success: false, message: 'Failed to fetch user details' });
+    }
+
+    const usersMap = new Map();
+    users?.forEach(user => {
+      usersMap.set(user.id, user);
+    });
+
+    const messageWithUsers = {
+      ...newMessage,
+      sender: usersMap.get(newMessage.sender_id),
+      receiver: usersMap.get(newMessage.receiver_id)
+    };
+
+    res.json({
+      success: true,
+      message: 'Message sent successfully',
+      data: messageWithUsers
+    });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send message' });
+  }
+});
+
+// Get coach by ID (IMPORTANT: Keep this at the end - parameterized routes must come after specific ones)
 router.get('/coach/:id', getCoachById);
 
 export default router; 
