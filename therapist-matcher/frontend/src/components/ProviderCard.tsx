@@ -16,18 +16,15 @@ export interface ProviderCardProps {
   name: string;
   matchScore: number;
   specialties: string[];
-  modalities: string[];
-  location: string[];
-  demographics: {
-    gender: string;
-    ethnicity: string;
-    religion: string;
-  };
   languages: string[];
   bio: string;
-  sexualOrientation: string;
+  sessionRate: string;
+  experience: string;
+  rating: number;
+  virtualAvailable: boolean;
+  inPersonAvailable: boolean;
+  email?: string;
   isBestMatch?: boolean;
-  availableTimes: string[];
 }
 
 export const ProviderCard = ({
@@ -35,14 +32,15 @@ export const ProviderCard = ({
   name,
   matchScore,
   specialties,
-  modalities,
-  location,
-  demographics,
   languages,
   bio,
-  sexualOrientation,
-  isBestMatch,
-  availableTimes
+  sessionRate,
+  experience,
+  rating,
+  virtualAvailable,
+  inPersonAvailable,
+  email,
+  isBestMatch
 }: ProviderCardProps) => {
   const [showAllSpecialties, setShowAllSpecialties] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -68,39 +66,32 @@ export const ProviderCard = ({
     checkIfSaved()
   }, [id, name])
 
-  const handleSaveToggle = () => {
+  const handleSaveToggle = async () => {
     try {
       const coachId = id || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-      const savedCoaches = localStorage.getItem('savedCoaches')
-      let coaches = savedCoaches ? JSON.parse(savedCoaches) : []
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       
       if (isSaved) {
         // Remove from saved
-        coaches = coaches.filter((coach: any) => coach.id !== coachId)
+        await fetch(`${API_URL}/api/client/saved-coaches/${coachId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         setIsSaved(false)
       } else {
         // Add to saved
-        const coachData = {
-          id: coachId,
-          name,
-          specialties,
-          modalities,
-          location,
-          matchScore,
-          languages,
-          bio,
-          sessionRate: "$150-200/session", // Default rate
-          virtualAvailable: true,
-          inPersonAvailable: true,
-          savedDate: new Date().toISOString().split('T')[0],
-          experience: "5+ years", // Default experience
-          rating: 4.8
-        }
-        coaches.push(coachData)
+        await fetch(`${API_URL}/api/client/saved-coaches`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ coachId })
+        })
         setIsSaved(true)
       }
-      
-      localStorage.setItem('savedCoaches', JSON.stringify(coaches))
     } catch (error) {
       console.error('Error saving coach:', error)
     }
@@ -170,57 +161,51 @@ export const ProviderCard = ({
           </div>
           
           <div>
-            <p className="text-sm font-medium">Treatment Approaches</p>
+            <p className="text-sm font-medium">Languages</p>
             <div className="flex flex-wrap gap-1 mt-1">
-              {(modalities || []).map((modality) => (
+              {(languages || []).map((language) => (
                 <span
-                  key={modality}
+                  key={language}
                   className="bg-[#F4B183]/20 text-[#96551C] text-xs px-2 py-1 rounded-md border border-[#F4B183]/30"
                 >
-                  {modality}
+                  {language}
                 </span>
               ))}
             </div>
           </div>
 
           <div>
-            <p className="text-sm font-medium">Provider Background</p>
-            <div className="grid grid-cols-3 gap-2 mt-1">
+            <p className="text-sm font-medium">Provider Details</p>
+            <div className="grid grid-cols-2 gap-4 mt-2">
               <div>
-                <p className="text-xs text-muted-foreground">Gender</p>
-                <p className="text-sm">{demographics.gender}</p>
+                <p className="text-xs text-muted-foreground">Experience</p>
+                <p className="text-sm">{experience}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Ethnicity</p>
-                <p className="text-sm">{demographics.ethnicity}</p>
+                <p className="text-xs text-muted-foreground">Rating</p>
+                <p className="text-sm">⭐ {rating}/5</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Religion</p>
-                <p className="text-sm">{demographics.religion}</p>
+                <p className="text-xs text-muted-foreground">Session Rate</p>
+                <p className="text-sm">{sessionRate}</p>
               </div>
-            </div>
-            <div className="mt-2">
-              <p className="text-xs text-muted-foreground">Languages</p>
-              <p className="text-sm">{languages.join(', ')}</p>
-            </div>
-            <div className="mt-2">
-              <p className="text-xs text-muted-foreground">Available Times</p>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {(availableTimes || []).map((time) => (
-                  <span
-                    key={time}
-                    className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-md"
-                  >
-                    {time}
-                  </span>
-                ))}
+              <div>
+                <p className="text-xs text-muted-foreground">Availability</p>
+                <div className="flex gap-1">
+                  {virtualAvailable && (
+                    <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-md">
+                      Virtual
+                    </span>
+                  )}
+                  {inPersonAvailable && (
+                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-md">
+                      In-Person
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-
-          <p className="text-sm text-muted-foreground mt-2">
-            📍 {Array.isArray(location) ? location.join(', ') : location}
-          </p>
           
           {/* Action Buttons */}
           <div className="mt-4 flex gap-2">

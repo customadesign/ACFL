@@ -1,18 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Star, Calendar, Video, MapPin, MessageCircle, Trash2 } from "lucide-react"
+import { Heart, Star, Calendar, Video, MapPin, MessageCircle, Trash2, User, RefreshCw } from "lucide-react"
+import ProtectedRoute from '@/components/ProtectedRoute'
+import BookingModal from '@/components/BookingModal'
+import MessageCoachModal from '@/components/MessageCoachModal'
+import { useAuth } from '@/contexts/AuthContext'
+import axios from 'axios'
 
 interface SavedCoach {
   id: string
   name: string
   specialties: string[]
-  modalities: string[]
-  location: string[]
-  matchScore: number
   languages: string[]
   bio: string
   sessionRate: string
@@ -21,91 +23,101 @@ interface SavedCoach {
   savedDate: string
   experience: string
   rating: number
+  email?: string
+  fakeAppointment?: any
 }
 
-// Mock saved coaches data
-const mockSavedCoaches: SavedCoach[] = [
-  {
-    id: '1',
-    name: "Richard Peng",
-    specialties: ["Anxiety", "Depression"],
-    modalities: ["ACT", "Mindfulness-Based Coaching"],
-    location: ["CA", "NY"],
-    matchScore: 95,
-    languages: ["English", "Mandarin"],
-    bio: "I'm a compassionate ACT coach specializing in anxiety and depression management. I help clients develop psychological flexibility through mindfulness, acceptance, and values-based action.",
-    sessionRate: "$150-200/session",
-    virtualAvailable: true,
-    inPersonAvailable: true,
-    savedDate: "2024-01-10",
-    experience: "8 years",
-    rating: 4.9
-  },
-  {
-    id: '2',
-    name: "Alice Zhang",
-    specialties: ["Depression", "Mindfulness"],
-    modalities: ["ACT", "Mindfulness-Based Stress Reduction"],
-    location: ["CA"],
-    matchScore: 87,
-    languages: ["English", "Mandarin"],
-    bio: "I believe in empowering clients through mindfulness and acceptance practices. My approach combines traditional ACT principles with MBSR techniques to help clients find peace and purpose.",
-    sessionRate: "$175-225/session",
-    virtualAvailable: true,
-    inPersonAvailable: false,
-    savedDate: "2024-01-08",
-    experience: "6 years",
-    rating: 4.8
-  },
-  {
-    id: '3',
-    name: "Maria Rodriguez",
-    specialties: ["Trauma Recovery", "Life Transitions"],
-    modalities: ["ACT", "Trauma-Informed ACT"],
-    location: ["NY", "FL"],
-    matchScore: 82,
-    languages: ["English", "Spanish"],
-    bio: "I'm a trauma-informed ACT coach specializing in helping clients heal from past experiences and navigate major life transitions with confidence and purpose.",
-    sessionRate: "$160-210/session",
-    virtualAvailable: true,
-    inPersonAvailable: true,
-    savedDate: "2024-01-05",
-    experience: "12 years",
-    rating: 4.9
-  }
-]
 
-export default function SavedCoachesPage() {
+function SavedCoachesContent() {
+  const { user, logout, isAuthenticated } = useAuth()
   const [savedCoaches, setSavedCoaches] = useState<SavedCoach[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [selectedCoach, setSelectedCoach] = useState<SavedCoach | null>(null)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
+  const [hasLoaded, setHasLoaded] = useState(false)
 
-  useEffect(() => {
-    // Simulate loading saved coaches from localStorage or API
-    const loadSavedCoaches = () => {
-      try {
-        const saved = localStorage.getItem('savedCoaches')
-        if (saved) {
-          setSavedCoaches(JSON.parse(saved))
-        } else {
-          // Use mock data for demonstration
-          setSavedCoaches(mockSavedCoaches)
-          localStorage.setItem('savedCoaches', JSON.stringify(mockSavedCoaches))
-        }
-      } catch (error) {
-        console.error('Error loading saved coaches:', error)
-        setSavedCoaches(mockSavedCoaches)
-      } finally {
-        setLoading(false)
-      }
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+  const loadSavedCoaches = async (forceRefresh = false) => {
+    // Don't load if already loaded and not forcing refresh
+    if (!forceRefresh && hasLoaded) {
+      return
     }
 
-    loadSavedCoaches()
-  }, [])
+    // Don't start loading if already loading
+    if (loading && !forceRefresh) {
+      return
+    }
 
-  const handleRemoveCoach = (coachId: string) => {
-    const updatedCoaches = savedCoaches.filter(coach => coach.id !== coachId)
-    setSavedCoaches(updatedCoaches)
-    localStorage.setItem('savedCoaches', JSON.stringify(updatedCoaches))
+    try {
+      setLoading(true)
+      const response = await axios.get(`${API_URL}/api/client/saved-coaches`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (response.data.success) {
+        setSavedCoaches(response.data.data)
+        setHasLoaded(true)
+      }
+    } catch (error) {
+      console.error('Error loading saved coaches:', error)
+      setError('Failed to load saved coaches')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!hasLoaded) {
+      loadSavedCoaches()
+    }
+  }, [hasLoaded])
+
+  const handleRemoveCoach = async (coachId: string) => {
+    try {
+      await axios.delete(`${API_URL}/api/client/saved-coaches/${coachId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      // Remove from local state
+      setSavedCoaches(prev => prev.filter(coach => coach.id !== coachId))
+    } catch (error) {
+      console.error('Error removing saved coach:', error)
+      setError('Failed to remove coach')
+    }
+  }
+
+  const handleScheduleSession = (coach: SavedCoach) => {
+    setSelectedCoach(coach)
+    setShowBookingModal(true)
+  }
+
+  const handleSendMessage = (coach: SavedCoach) => {
+    // Create a fake appointment object for the message modal
+    const fakeAppointment = {
+      id: 'temp-' + Date.now(),
+      coach_id: coach.id,
+      coaches: {
+        first_name: coach.name.split(' ')[0],
+        last_name: coach.name.split(' ').slice(1).join(' ') || '',
+        id: coach.id
+      },
+      scheduled_at: new Date().toISOString(),
+      session_type: 'General Inquiry'
+    }
+    setSelectedCoach({...coach, fakeAppointment})
+    setShowMessageModal(true)
+  }
+
+  const handleModalSuccess = () => {
+    // Force refresh saved coaches after booking/messaging
+    loadSavedCoaches(true)
   }
 
   const formatDate = (dateString: string) => {
@@ -117,7 +129,17 @@ export default function SavedCoachesPage() {
     })
   }
 
-  if (loading) {
+  // Memoized computed values
+  const averageRating = useMemo(() => {
+    if (savedCoaches.length === 0) return 0
+    return (savedCoaches.reduce((sum, coach) => sum + coach.rating, 0) / savedCoaches.length).toFixed(1)
+  }, [savedCoaches])
+
+  const virtualAvailableCount = useMemo(() => {
+    return savedCoaches.filter(coach => coach.virtualAvailable).length
+  }, [savedCoaches])
+
+  if (loading && savedCoaches.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-xl text-gray-600">Loading saved coaches...</div>
@@ -128,9 +150,9 @@ export default function SavedCoachesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <img
                 src="https://storage.googleapis.com/msgsndr/12p9V9PdtvnTPGSU0BBw/media/672420528abc730356eeaad5.png"
@@ -139,11 +161,15 @@ export default function SavedCoachesPage() {
               />
               <h1 className="text-xl font-semibold text-gray-900">ACT Coaching For Life</h1>
             </div>
-            <Link href="/">
-              <button className="text-sm bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors">
-                ← New Search
-              </button>
-            </Link>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-gray-600">
+                <User className="w-4 h-4" />
+                <span>Welcome, {user?.firstName || 'Client'}</span>
+              </div>
+              <Button variant="outline" onClick={logout}>
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -152,7 +178,12 @@ export default function SavedCoachesPage() {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
-            <Link href="/">
+            <Link href="/dashboard">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Dashboard
+              </button>
+            </Link>
+            <Link href="/search-coaches">
               <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
                 Search Coaches
               </button>
@@ -165,17 +196,45 @@ export default function SavedCoachesPage() {
                 Appointments
               </button>
             </Link>
+            <Link href="/messages">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Messages
+              </button>
+            </Link>
+            <Link href="/profile">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Profile
+              </button>
+            </Link>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
+
         {/* Page Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Saved Coaches</h2>
-          <p className="text-lg text-gray-600">
-            Coaches you've saved for easy access and comparison
-          </p>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Saved Coaches</h2>
+            <p className="text-lg text-gray-600">
+              Coaches you've saved for easy access and comparison
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => loadSavedCoaches(true)}
+            disabled={loading}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
         </div>
 
         {/* Stats */}
@@ -194,12 +253,9 @@ export default function SavedCoachesPage() {
             <div className="flex items-center">
               <Star className="w-8 h-8 text-green-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-green-800">Avg Match Score</p>
+                <p className="text-sm font-medium text-green-800">Avg Rating</p>
                 <p className="text-2xl font-bold text-green-900">
-                  {savedCoaches.length > 0 
-                    ? Math.round(savedCoaches.reduce((sum, coach) => sum + coach.matchScore, 0) / savedCoaches.length)
-                    : 0
-                  }%
+                  {averageRating}
                 </p>
               </div>
             </div>
@@ -211,7 +267,7 @@ export default function SavedCoachesPage() {
               <div>
                 <p className="text-sm font-medium text-purple-800">Virtual Available</p>
                 <p className="text-2xl font-bold text-purple-900">
-                  {savedCoaches.filter(coach => coach.virtualAvailable).length}
+                  {virtualAvailableCount}
                 </p>
               </div>
             </div>
@@ -248,31 +304,31 @@ export default function SavedCoachesPage() {
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
                         <span className="text-sm text-gray-600">{coach.rating}</span>
                       </div>
-                      <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {coach.matchScore}% Match
+                      <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                        Saved Coach
                       </div>
                     </div>
                     
                     <div className="text-sm text-gray-600 mb-3">
-                      Saved on {formatDate(coach.savedDate)} • {coach.experience} experience
+                      Saved on {formatDate(coach.savedDate)}
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-1">Specialties:</p>
-                        <p className="text-sm text-gray-600">{coach.specialties.join(', ')}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">Modalities:</p>
-                        <p className="text-sm text-gray-600">{coach.modalities.join(', ')}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">Location:</p>
-                        <p className="text-sm text-gray-600">{coach.location.join(', ')}</p>
+                        <p className="text-sm text-gray-600">{coach.specialties.join(', ') || 'Not specified'}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-1">Languages:</p>
-                        <p className="text-sm text-gray-600">{coach.languages.join(', ')}</p>
+                        <p className="text-sm text-gray-600">{coach.languages.join(', ') || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Experience:</p>
+                        <p className="text-sm text-gray-600">{coach.experience} experience</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Session Rate:</p>
+                        <p className="text-sm text-gray-600">{coach.sessionRate}</p>
                       </div>
                     </div>
 
@@ -303,11 +359,19 @@ export default function SavedCoachesPage() {
                           View Full Profile
                         </Button>
                       </Link>
-                      <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50">
+                      <Button 
+                        variant="outline" 
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                        onClick={() => handleScheduleSession(coach)}
+                      >
                         <Calendar className="w-4 h-4 mr-2" />
                         Schedule Session
                       </Button>
-                      <Button variant="outline" className="text-purple-600 border-purple-600 hover:bg-purple-50">
+                      <Button 
+                        variant="outline" 
+                        className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                        onClick={() => handleSendMessage(coach)}
+                      >
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Send Message
                       </Button>
@@ -349,7 +413,49 @@ export default function SavedCoachesPage() {
             </div>
           </Card>
         )}
+
+        {/* Modals */}
+        {selectedCoach && (
+          <>
+            <BookingModal
+              isOpen={showBookingModal}
+              onClose={() => setShowBookingModal(false)}
+              coach={{
+                id: selectedCoach.id,
+                name: selectedCoach.name,
+                sessionRate: selectedCoach.sessionRate,
+                virtualAvailable: selectedCoach.virtualAvailable,
+                inPersonAvailable: selectedCoach.inPersonAvailable
+              }}
+              sessionType="session"
+            />
+            <MessageCoachModal
+              isOpen={showMessageModal}
+              onClose={() => setShowMessageModal(false)}
+              appointment={selectedCoach.fakeAppointment || {
+                id: 'temp-' + Date.now(),
+                coach_id: selectedCoach.id,
+                coaches: {
+                  first_name: selectedCoach.name.split(' ')[0],
+                  last_name: selectedCoach.name.split(' ').slice(1).join(' ') || '',
+                  id: selectedCoach.id
+                },
+                scheduled_at: new Date().toISOString(),
+                session_type: 'General Inquiry'
+              }}
+              onSuccess={handleModalSuccess}
+            />
+          </>
+        )}
       </div>
     </div>
+  )
+}
+
+export default function SavedCoachesPage() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <SavedCoachesContent />
+    </ProtectedRoute>
   )
 } 

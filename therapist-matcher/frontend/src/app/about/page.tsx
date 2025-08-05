@@ -9,6 +9,7 @@ import GradientText from "@/components/GradientText"
 import CountUp from "@/components/CountUp"
 import SpotlightCard from "@/components/SpotlightCard"
 import ShinyText from "@/components/ShinyText"
+import Navigation from "@/components/Navigation"
 import { 
   Heart, 
   Users, 
@@ -29,33 +30,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-2">
-              <Logo size={32} />
-              <span className="text-xl font-bold text-ink-dark">ACT Coaching for Life</span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="/" className="text-gray-700 hover:text-brand-teal transition-colors">
-                Home
-              </Link>
-              <Link href="/pricing" className="text-gray-700 hover:text-brand-teal transition-colors">
-                Pricing
-              </Link>
-              <Link href="/about" className="text-brand-teal font-semibold">
-                About
-              </Link>
-              <a href="/#quick-assessment">
-                <Button className="bg-brand-teal hover:bg-brand-teal/90 text-white">
-                  Find a Coach
-                </Button>
-              </a>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Hero Section */}
       <section className="py-20">

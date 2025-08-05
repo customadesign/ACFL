@@ -33,8 +33,9 @@ export default function Results() {
     const savedMatches = localStorage.getItem('matches')
     
     if (!savedData || !savedMatches) {
-      setError('No form data or matches found')
-      router.push('/')
+      // Instead of redirecting to home, show a message to complete assessment
+      setError('Please complete the assessment to see your coach matches')
+      setIsLoading(false)
       return
     }
     
@@ -89,7 +90,22 @@ export default function Results() {
   }
 
   if (error) {
-    return <div>Error: {error}</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to ACT Coaching For Life</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <Button 
+              onClick={() => router.push('/')}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Start Assessment
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!matches.length) {

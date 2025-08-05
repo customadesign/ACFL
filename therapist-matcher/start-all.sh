@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Get the absolute path of the script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "Starting ACT Coaching For Life - All Dashboards"
 echo "=============================================="
 
@@ -12,7 +15,7 @@ lsof -ti:4003 | xargs kill -9 2>/dev/null || true
 
 # Start backend
 echo "Starting backend server on port 3001..."
-cd backend && npm run dev &
+cd "$SCRIPT_DIR/backend" && npm run dev &
 BACKEND_PID=$!
 
 # Wait for backend to start
@@ -20,17 +23,17 @@ sleep 5
 
 # Start members dashboard (frontend)
 echo "Starting members dashboard on port 4000..."
-cd ../frontend && npm run dev &
+cd "$SCRIPT_DIR/frontend" && npm run dev &
 MEMBERS_PID=$!
 
 # Start coaches dashboard
 echo "Starting coaches dashboard on port 4002..."
-cd ../coaches-dashboard && npm run dev &
+cd "$SCRIPT_DIR/coaches-dashboard" && npm run dev &
 COACHES_PID=$!
 
 # Start admin dashboard
 echo "Starting admin dashboard on port 4003..."
-cd ../admin-dashboard && npm run dev &
+cd "$SCRIPT_DIR/admin-dashboard" && npm run dev &
 ADMIN_PID=$!
 
 echo ""

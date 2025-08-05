@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import {
-  Clock as e,
+  Clock,
   PerspectiveCamera as t,
   Scene as i,
   WebGLRenderer as s,
@@ -24,17 +24,17 @@ import {
 import { RoomEnvironment as z } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 class x {
-  #e;
-  canvas;
-  camera;
-  cameraMinAspect;
-  cameraMaxAspect;
-  cameraFov;
-  maxPixelRatio;
-  minPixelRatio;
-  scene;
-  renderer;
-  #t;
+  #e: any;
+  canvas!: HTMLCanvasElement;
+  camera!: any;
+  cameraMinAspect!: number;
+  cameraMaxAspect!: number;
+  cameraFov!: number;
+  maxPixelRatio!: number;
+  minPixelRatio!: number;
+  scene!: any;
+  renderer!: any;
+  #t: any;
   size = { width: 0, height: 0, wWidth: 0, wHeight: 0, ratio: 0, pixelRatio: 0 };
   render = this.#i;
   onBeforeRender = () => { };
@@ -43,14 +43,15 @@ class x {
   #s = false;
   #n = false;
   isDisposed = false;
-  #o;
-  #r;
-  #a;
-  #c = new e();
+  #o!: any;
+  #r!: any;
+  #a!: any;
+  #c!: any;
   #h = { elapsed: 0, delta: 0 };
-  #l;
-  constructor(e) {
+  #l!: any;
+  constructor(e: any) {
     this.#e = { ...e };
+    this.#c = new Clock();
     this.#m();
     this.#d();
     this.#p();
@@ -68,7 +69,12 @@ class x {
     if (this.#e.canvas) {
       this.canvas = this.#e.canvas;
     } else if (this.#e.id) {
-      this.canvas = document.getElementById(this.#e.id);
+      const element = document.getElementById(this.#e.id);
+      if (element instanceof HTMLCanvasElement) {
+        this.canvas = element;
+      } else {
+        console.error("Three: Element with id is not a canvas");
+      }
     } else {
       console.error("Three: Missing canvas or id parameter");
     }
@@ -122,8 +128,9 @@ class x {
       e = this.#e.size.width;
       t = this.#e.size.height;
     } else if (this.#e.size === "parent" && this.canvas.parentNode) {
-      e = this.canvas.parentNode.offsetWidth;
-      t = this.canvas.parentNode.offsetHeight;
+      const parent = this.canvas.parentNode as HTMLElement;
+      e = parent.offsetWidth;
+      t = parent.offsetHeight;
     } else {
       e = window.innerWidth;
       t = window.innerHeight;

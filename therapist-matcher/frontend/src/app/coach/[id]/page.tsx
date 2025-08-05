@@ -5,7 +5,10 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Heart, Calendar, MessageCircle } from 'lucide-react'
+import { Heart, Calendar, MessageCircle, User } from 'lucide-react'
+import ProtectedRoute from '@/components/ProtectedRoute'
+import BookingModal from '@/components/BookingModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Coach {
   id: string
@@ -20,6 +23,7 @@ interface Coach {
   }
   availability: number
   matchScore: number
+  rating: number
   languages: string[]
   bio: string
   sexualOrientation: string
@@ -35,12 +39,15 @@ interface Coach {
   inPersonAvailable?: boolean
 }
 
-export default function CoachProfile() {
+function CoachProfileContent() {
   const params = useParams()
   const router = useRouter()
+  const { user, logout } = useAuth()
   const [coach, setCoach] = useState<Coach | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSaved, setIsSaved] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [bookingType, setBookingType] = useState<'consultation' | 'session'>('consultation')
 
   useEffect(() => {
     // Fetch coach data based on ID
@@ -77,6 +84,7 @@ export default function CoachProfile() {
               certifications: ["Certified ACT Coach", "Mindfulness-Based Stress Reduction (MBSR)", "ICF Professional Certified Coach (PCC)"],
               insuranceAccepted: ["Blue Cross Blue Shield", "Aetna", "United Healthcare", "Cigna"],
               sessionRate: "$150-200/session",
+              rating: 4.8,
               virtualAvailable: true,
               inPersonAvailable: true
             },
@@ -104,6 +112,7 @@ export default function CoachProfile() {
               certifications: ["Certified ACT Trainer", "MBSR Teacher Certification", "ICF Master Certified Coach (MCC)"],
               insuranceAccepted: ["Kaiser Permanente", "Anthem", "Health Net"],
               sessionRate: "$175-225/session",
+              rating: 4.9,
               virtualAvailable: true,
               inPersonAvailable: false
             },
@@ -131,6 +140,7 @@ export default function CoachProfile() {
               certifications: ["Certified ACT Coach", "Trauma-Informed Care Specialist", "EMDR Trained"],
               insuranceAccepted: ["Oxford", "Empire Blue Cross", "Humana", "Medicare"],
               sessionRate: "$160-210/session",
+              rating: 4.7,
               virtualAvailable: true,
               inPersonAvailable: true
             }
@@ -150,6 +160,16 @@ export default function CoachProfile() {
 
     fetchCoach()
   }, [params.id])
+
+  const handleBookConsultation = () => {
+    setBookingType('consultation')
+    setShowBookingModal(true)
+  }
+
+  const handleBookSession = () => {
+    setBookingType('session')
+    setShowBookingModal(true)
+  }
 
   if (loading) {
     return (
@@ -181,12 +201,15 @@ export default function CoachProfile() {
               />
               <h1 className="text-xl font-semibold text-gray-900">ACT Coaching For Life</h1>
             </div>
-            <button
-              onClick={() => router.back()}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <span>← Back to Results</span>
-            </button>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-gray-600">
+                <User className="w-4 h-4" />
+                <span>Welcome, {user?.firstName || 'Client'}</span>
+              </div>
+              <Button variant="outline" onClick={logout}>
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -195,23 +218,34 @@ export default function CoachProfile() {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
-            <button
-              className="py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm whitespace-nowrap"
-            >
-              Search Coaches
-            </button>
+            <Link href="/dashboard">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Dashboard
+              </button>
+            </Link>
+            <Link href="/search-coaches">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Search Coaches
+              </button>
+            </Link>
             <Link href="/saved-coaches">
-              <button
-                className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
-              >
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
                 Saved Coaches
               </button>
             </Link>
             <Link href="/appointments">
-              <button
-                className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
-              >
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
                 Appointments
+              </button>
+            </Link>
+            <Link href="/messages">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Messages
+              </button>
+            </Link>
+            <Link href="/profile">
+              <button className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap">
+                Profile
               </button>
             </Link>
           </div>
@@ -257,7 +291,10 @@ export default function CoachProfile() {
                   <p className="font-medium">{coach.phone}</p>
                 </div>
               </div>
-              <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
+              <Button 
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
+                onClick={handleBookConsultation}
+              >
                 Schedule Consultation
               </Button>
             </Card>
@@ -271,24 +308,37 @@ export default function CoachProfile() {
                   <p className="font-medium">{coach.sessionRate}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Availability</p>
-                  <div className="mt-1">
-                    {coach.availableTimes.map((time, idx) => (
-                      <span key={idx} className="inline-block text-sm bg-green-100 text-green-800 px-2 py-1 rounded mr-2 mb-2">
-                        {time}
-                      </span>
-                    ))}
+                  <p className="text-sm text-gray-500">Experience</p>
+                  <p className="font-medium">{coach.experience}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Rating</p>
+                  <div className="flex items-center space-x-1">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <svg
+                          key={i}
+                          className={`w-4 h-4 ${i < Math.floor(coach.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600">({coach.rating || 0})</span>
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Session Format</p>
-                  <div className="mt-1 space-y-1">
-                    {coach.virtualAvailable && (
-                      <span className="block text-sm">✓ Virtual Sessions</span>
-                    )}
-                    {coach.inPersonAvailable && (
-                      <span className="block text-sm">✓ In-Person Sessions</span>
-                    )}
+                  <p className="text-sm text-gray-500">Match Score</p>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${coach.matchScore || 0}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-sm font-medium">{coach.matchScore || 0}%</span>
                   </div>
                 </div>
               </div>
@@ -340,6 +390,30 @@ export default function CoachProfile() {
               </div>
             </Card>
 
+            {/* Languages & Demographics */}
+            <Card className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Languages & Demographics</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Languages Spoken</h4>
+                  <div className="space-y-1">
+                    {coach.languages.map((language, idx) => (
+                      <div key={idx} className="text-sm text-gray-700">• {language}</div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Demographics</h4>
+                  <div className="space-y-1 text-sm text-gray-700">
+                    <div>Gender: {coach.demographics.gender}</div>
+                    <div>Ethnicity: {coach.demographics.ethnicity}</div>
+                    <div>Religion: {coach.demographics.religion}</div>
+                    <div>Sexual Orientation: {coach.sexualOrientation}</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
             {/* Background */}
             <Card className="p-6">
               <h3 className="font-semibold text-lg mb-4">Professional Background</h3>
@@ -361,25 +435,35 @@ export default function CoachProfile() {
               </div>
             </Card>
 
-            {/* Demographics & Languages */}
+            {/* Availability & Session Types */}
             <Card className="p-6">
-              <h3 className="font-semibold text-lg mb-4">Additional Information</h3>
-              <div className="grid sm:grid-cols-2 gap-4">
+              <h3 className="font-semibold text-lg mb-4">Availability & Session Types</h3>
+              <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Demographics</h4>
-                  <div className="space-y-1 text-sm text-gray-700">
-                    <div>Gender: {coach.demographics.gender}</div>
-                    <div>Ethnicity: {coach.demographics.ethnicity}</div>
-                    <div>Religion: {coach.demographics.religion}</div>
-                    <div>Sexual Orientation: {coach.sexualOrientation}</div>
+                  <h4 className="font-medium text-gray-900 mb-2">Available Times</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {coach.availableTimes.map((time, idx) => (
+                      <span key={idx} className="inline-block text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                        {time}
+                      </span>
+                    ))}
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Languages</h4>
-                  <div className="space-y-1">
-                    {coach.languages.map((language, idx) => (
-                      <div key={idx} className="text-sm text-gray-700">• {language}</div>
-                    ))}
+                  <h4 className="font-medium text-gray-900 mb-2">Session Formats</h4>
+                  <div className="space-y-2">
+                    {coach.virtualAvailable && (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm text-gray-700">Virtual Sessions Available</span>
+                      </div>
+                    )}
+                    {coach.inPersonAvailable && (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm text-gray-700">In-Person Sessions Available</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,13 +475,43 @@ export default function CoachProfile() {
               <p className="text-gray-700 mb-4">
                 Schedule a free 15-minute consultation to see if we're a good fit for your coaching needs.
               </p>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                Book Free Consultation
-              </Button>
+              <div className="flex space-x-3">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 flex-1"
+                  onClick={handleBookConsultation}
+                >
+                  Book Free Consultation
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleBookSession}
+                >
+                  Book Full Session
+                </Button>
+              </div>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {coach && (
+        <BookingModal
+          isOpen={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          coach={coach}
+          sessionType={bookingType}
+        />
+      )}
     </div>
+  )
+}
+
+export default function CoachProfile() {
+  return (
+    <ProtectedRoute allowedRoles={['client']}>
+      <CoachProfileContent />
+    </ProtectedRoute>
   )
 } 

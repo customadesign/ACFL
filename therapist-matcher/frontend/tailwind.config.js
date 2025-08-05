@@ -12,20 +12,6 @@ module.exports = {
     },
     extend: {
       colors: {
-        // ACT Coaching For Life Brand Colors
-        brand: {
-          teal: '#25A7B8',
-          orange: '#F7931D',
-          coral: '#E84D3D',
-          leaf: '#79B85A',
-        },
-        ink: { 
-          dark: '#333333' 
-        },
-        gray: { 
-          lite: '#F6F7F8' 
-        },
-        // Original shadcn/ui colors
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -59,26 +45,18 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Brand colors
+        'brand-teal': '#25A7B8',
+        'brand-orange': '#F7931D',
+        'brand-leaf': '#7FB069',
+        'brand-coral': '#FF6B9D',
+        'ink-dark': '#2D3748',
+        'gray-lite': '#F7FAFC',
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-      },
-      keyframes: {
-        gradient: {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' },
-        },
-        shine: {
-          '0%': { 'background-position': '100%' },
-          '100%': { 'background-position': '-100%' },
-        },
-      },
-      animation: {
-        gradient: 'gradient 8s linear infinite',
-        shine: 'shine 5s linear infinite',
       },
     },
   },

@@ -8,9 +8,12 @@ interface LogoProps {
 }
 
 export default function Logo({ size = 32, className = "" }: LogoProps) {
+  // Build className to avoid hydration issues
+  const finalClassName = ['inline-block', className].filter(Boolean).join(' ');
+  
   return (
     <motion.div
-      className={`inline-block ${className}`}
+      className={finalClassName}
       initial={{ rotate: 0 }}
       whileHover={{ rotate: 360 }}
       transition={{ duration: 1.6, ease: "easeInOut" }}
